@@ -1,0 +1,5 @@
+{
+  "_comment": "Override EDID info for displays with incorrect data. Key = MFG_ID + product_code_hex",
+  "SAM7513": {"model": "QN65QN900B", "diagonal": 65, "note": "Samsung Neo QLED 8K 65 Salon"},
+  "SAM71A5": {"model": "QE32Q50A", "diagonal": 32, "note": "Samsung Q50AE 32 Loggia"}
+}

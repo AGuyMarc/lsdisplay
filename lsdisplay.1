@@ -1,0 +1,81 @@
+.TH LSDISPLAY 1 "May 2026" "lsdisplay 0.1.0" "User Commands"
+.SH NAME
+lsdisplay \- list connected displays with details and layout diagram
+.SH SYNOPSIS
+.B lsdisplay
+[\fIOPTIONS\fR]
+.SH DESCRIPTION
+.B lsdisplay
+lists all connected displays/monitors with manufacturer, model, serial number,
+resolution, position, rotation, and connector type. It also renders an ASCII art
+diagram showing the physical layout of the displays.
+.PP
+Display identification is performed by parsing EDID data from
+.IR /sys/class/drm/*/edid .
+Resolution and positioning information is obtained from
+.BR xrandr (1),
+with fallback to
+.BR kscreen-doctor (1)
+or
+.BR wlr-randr (1)
+on Wayland sessions.
+.PP
+.B lsdisplay
+is similar in spirit to
+.BR lscpu (1),
+.BR lsusb (8),
+and
+.BR lspci (8),
+but for display devices.
+.SH OPTIONS
+.TP
+.B \-\-json
+Output all display information as JSON.
+.TP
+.B \-\-short\fR, \fB\-s
+Compact output with one line per display.
+.TP
+.B \-\-no\-layout
+Skip the ASCII art layout diagram.
+.TP
+.B \-\-version\fR, \fB\-V
+Show version number and exit.
+.TP
+.B \-\-help\fR, \fB\-h
+Show help message and exit.
+.SH OUTPUT
+The default output consists of two sections:
+.TP
+.B CONNECTED DISPLAYS
+A table listing each display with output name, resolution, position, diagonal size, manufacturer, model, connector type, serial number, rotation, and primary flag.
+.TP
+.B LAYOUT
+An ASCII art diagram showing the relative positions and sizes of all displays with correct proportions.
+.SH EXAMPLES
+.nf
+.B lsdisplay
+.B lsdisplay \-\-json
+.B lsdisplay \-s
+.B lsdisplay \-\-json | jq '.[].manufacturer'
+.fi
+.SH FILES
+.TP
+.I /sys/class/drm/card*/edid
+EDID binary data for each display output.
+.TP
+.I /sys/class/drm/card*\-*/status
+Connection status for each output port.
+.SH SEE ALSO
+.BR xrandr (1),
+.BR kscreen-doctor (1),
+.BR lsgpu (1),
+.BR lspci (8),
+.BR lsusb (8),
+.BR lscpu (1),
+.BR edid-decode (1)
+.SH BUGS
+Report bugs at https://github.com/lsdisplay/lsdisplay/issues
+.SH AUTHOR
+Guy-Marc Aprin <2026@gm.casa>
+.SH LICENSE
+GPL\-2.0. See LICENSE for the full text.

@@ -1,0 +1,13 @@
+lsdisplay (0.1.0-1) unstable; urgency=medium
+
+  * Initial release
+  * EDID parsing for manufacturer, model, serial
+  * ASCII layout diagram with correct proportions
+  * Smart TV network scan (--scan)
+  * Override file for incorrect EDID data
+  * Refresh rate display
+  * Color support with --no-color
+  * --list-priority with GPU mapping
+  * --connected-only flag
+
+ -- Guy-Marc Aprin <2026@gm.casa>  Sat, 03 May 2026 12:00:00 +0200

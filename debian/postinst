@@ -1,0 +1,9 @@
+#!/bin/sh
+set -e
+# Create lsdisplay symlink
+ln -sf /usr/bin/lsdisplay.py /usr/bin/lsdisplay
+# Install man page
+if [ -f /usr/share/doc/lsdisplay/lsdisplay.1 ]; then
+    cp /usr/share/doc/lsdisplay/lsdisplay.1 /usr/share/man/man1/ 2>/dev/null || true
+    mandb -q 2>/dev/null || true
+fi

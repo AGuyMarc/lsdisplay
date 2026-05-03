@@ -1,0 +1,18 @@
+Source: lsdisplay
+Section: utils
+Priority: optional
+Maintainer: Guy-Marc Aprin <2026@gm.casa>
+Build-Depends: debhelper-compat (= 13), python3
+Standards-Version: 4.6.2
+Homepage: https://github.com/lsdisplay/lsdisplay
+
+Package: lsdisplay
+Architecture: all
+Depends: python3 (>= 3.6), ${misc:Depends}
+Recommends: xrandr
+Description: List connected displays with details and ASCII layout
+ lsdisplay lists all connected displays/monitors with manufacturer,
+ model, serial number, resolution, position, rotation, refresh rate,
+ and connector type. It renders an ASCII art diagram showing the
+ physical layout. Similar to lsusb/lspci but for display devices.
+ Supports EDID parsing, Smart TV auto-discovery, and override files.
