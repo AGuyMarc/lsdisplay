@@ -2,7 +2,7 @@
 
 List connected displays with details and ASCII layout diagram.
 
-Like `lsusb`, `lspci`, `lscpu` — but for screens.
+Like `lsusb`, `lspci`, `lscpu` — but for displays.
 
 ## Features
 
