@@ -753,7 +753,7 @@ def main():
   lsdisplay --list-priority  show display priority order
   lsdisplay --json | jq '.[].manufacturer'
 
-source: https://github.com/lsdisplay/lsdisplay
+source: https://github.com/AGuyMarc/lsdisplay
 license: GPL-2.0""",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )

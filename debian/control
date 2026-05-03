@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Guy-Marc Aprin <2026@gm.casa>
 Build-Depends: debhelper-compat (= 13), python3
 Standards-Version: 4.6.2
-Homepage: https://github.com/lsdisplay/lsdisplay
+Homepage: https://github.com/AGuyMarc/lsdisplay
 
 Package: lsdisplay
 Architecture: all
