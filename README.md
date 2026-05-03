@@ -41,9 +41,9 @@ lsdisplay --version    # Show version
 CONNECTED DISPLAYS
 ==================
 
-  HDMI-A-2     1440x2560+1441+0        27"  Iiyama PL2792Q   HDMI         S/N:1152032422031   rot=left
-  DP-4         1440x2560+0+0           27"  Iiyama PL2792Q   DisplayPort  S/N:1152031921274   rot=left [PRIMARY]
-  HDMI-A-5     5376x3024+0+2561        65"  Samsung SAMSUNG  HDMI         S/N:16780800
+  HDMI-A-2     1440x2560@75Hz+1441+0   27"  Iiyama PL2792Q   HDMI         S/N:1152032422031   rot=left
+  DP-4         1440x2560@75Hz+0+0      27"  Iiyama PL2792Q   DisplayPort  S/N:1152031921274   rot=left [PRIMARY]
+  HDMI-A-5     5376x3024@60Hz+0+2561   65"  Samsung QN800D   HDMI         S/N:16780800
 
 Total: 3 display(s) connected
 
