@@ -54,6 +54,7 @@ PNP_MANUFACTURERS = {
 _use_color = True
 
 def _init_color(no_color_flag: bool):
+    """Disable ANSI colors when --no-color is set or stdout is not a terminal."""
     global _use_color
     _use_color = not no_color_flag and sys.stdout.isatty()
 
@@ -95,7 +96,7 @@ class Display:
     refresh_rate: float = 0.0
 
     def __post_init__(self):
-        # Determine connector type from name
+        # Infer connector type from the DRM output name prefix (e.g. "HDMI-A-2" → "HDMI")
         if self.name.startswith("HDMI"):
             self.connector = "HDMI"
         elif self.name.startswith("DP") or self.name.startswith("DisplayPort"):
@@ -111,7 +112,11 @@ class Display:
 
 
 def _load_overrides():
-    """Load display overrides from ~/.config/lsdisplay/overrides.json."""
+    """Load display overrides from ~/.config/lsdisplay/overrides.json.
+
+    Searches user config dir then /etc; first file found wins.
+    Keys starting with "_" (e.g. _comment) are stripped from the result.
+    """
     home = os.environ.get("HOME", os.path.expanduser("~"))
     paths = [
         os.path.join(home, ".config/lsdisplay/overrides.json"),
@@ -128,9 +133,10 @@ def _load_overrides():
                 pass
     return {}
 
-_OVERRIDES = None
+_OVERRIDES = None  # lazy-loaded singleton
 
 def get_overrides():
+    """Return cached overrides dict (loaded once on first call)."""
     global _OVERRIDES
     if _OVERRIDES is None:
         _OVERRIDES = _load_overrides()
@@ -142,20 +148,21 @@ def parse_edid(data: bytes) -> dict:
     if len(data) < 128:
         return {}
 
-    # Manufacturer ID (bytes 8-9), encoded as 3x5-bit ASCII
+    # EDID bytes 8-9: manufacturer ID encoded as three 5-bit chars (A=1 .. Z=26)
+    # packed into 16 bits: [0AAAAA BBBBB CCCCC]. Add 64 to get ASCII uppercase.
     m1, m2 = data[8], data[9]
-    c1 = chr(((m1 >> 2) & 0x1F) + 64)
-    c2 = chr(((m1 & 0x3) << 3 | (m2 >> 5)) + 64)
-    c3 = chr((m2 & 0x1F) + 64)
+    c1 = chr(((m1 >> 2) & 0x1F) + 64)          # bits 14..10 of the 16-bit word
+    c2 = chr(((m1 & 0x3) << 3 | (m2 >> 5)) + 64)  # bits 9..5
+    c3 = chr((m2 & 0x1F) + 64)                 # bits 4..0
     mfg_id = c1 + c2 + c3
 
-    # Product code (bytes 10-11)
+    # EDID bytes 10-11: product code (little-endian 16-bit)
     product_code = data[10] | (data[11] << 8)
 
-    # Serial number (bytes 12-15)
+    # EDID bytes 12-15: serial number (little-endian 32-bit)
     serial_num = data[12] | (data[13] << 8) | (data[14] << 16) | (data[15] << 24)
 
-    # Physical size from detailed timing descriptors (mm precision)
+    # Parse the four 18-byte descriptor blocks starting at byte 54
     width_mm = 0
     height_mm = 0
     name = ""
@@ -165,25 +172,26 @@ def parse_edid(data: bytes) -> dict:
         offset = 54 + i * 18
         if offset + 18 > len(data):
             break
-        # Detailed timing descriptor (not a display descriptor)
+        # Non-zero first two bytes = detailed timing descriptor (pixel clock present)
         if data[offset] != 0 or data[offset + 1] != 0:
-            # Physical size in mm from detailed timing
+            # Extract physical size: byte+12 = low 8 bits of width_mm,
+            # byte+14 upper nibble = high 4 bits; same pattern for height
             w = data[offset + 12] | ((data[offset + 14] & 0xF0) << 4)
             h = data[offset + 13] | ((data[offset + 14] & 0x0F) << 8)
             if w > 0 and h > 0 and width_mm == 0:
                 width_mm = w
                 height_mm = h
         else:
-            # Display descriptor
+            # Display descriptor: byte+3 is the tag type
             tag = data[offset + 3]
-            raw = data[offset + 5:offset + 18]
+            raw = data[offset + 5:offset + 18]  # 13-byte ASCII payload
             text = raw.decode("ascii", errors="replace").strip().rstrip("\n").rstrip("\r")
-            if tag == 0xFC:  # Monitor name
+            if tag == 0xFC:  # Monitor name descriptor
                 name = text
-            elif tag == 0xFF:  # Serial string
+            elif tag == 0xFF:  # Monitor serial string descriptor
                 serial_str = text
 
-    # Fallback to bytes 21-22 (cm) if no detailed timing found
+    # Fallback: bytes 21-22 give coarse physical size in centimeters
     if width_mm == 0:
         width_mm = data[21] * 10
         height_mm = data[22] * 10
@@ -198,7 +206,7 @@ def parse_edid(data: bytes) -> dict:
         "height_mm": height_mm,
     }
 
-    # Apply overrides if available
+    # Apply overrides keyed by "MFG_ID + product_code_hex" (e.g. "SAM0A3E")
     key = f"{mfg_id}{product_code:04X}"
     overrides = get_overrides()
     if key in overrides:
@@ -214,12 +222,13 @@ def parse_edid(data: bytes) -> dict:
 
 
 def read_edid_for_output(output_name: str) -> dict:
-    """Read EDID data from /sys/class/drm for a given output name."""
+    """Read EDID binary blob from /sys/class/drm/<card>-<output>/edid and parse it."""
     drm_dir = "/sys/class/drm"
     if not os.path.isdir(drm_dir):
         return {}
 
     for entry in os.listdir(drm_dir):
+        # Match entries like "card0-HDMI-A-2" containing the output name
         if output_name in entry:
             edid_path = os.path.join(drm_dir, entry, "edid")
             if os.path.exists(edid_path):
@@ -241,6 +250,8 @@ def get_displays_xrandr() -> List[Display]:
         return []
 
     displays = []
+    # Parse xrandr "connected" lines, e.g.:
+    #   HDMI-A-2 connected primary 2560x1440+0+0 normal (…) 597mm x 336mm
     pattern = re.compile(
         r"^(\S+) connected\s*(primary)?\s*(\d+)x(\d+)\+(\d+)\+(\d+)\s*"
         r"(left|right|inverted|normal)?\s*"
@@ -261,8 +272,8 @@ def get_displays_xrandr() -> List[Display]:
             d.y = int(m.group(6))
             d.rotation = m.group(7) or "normal"
 
-            # Parse refresh rate from mode lines following the connected line
-            # Look for a line with the current resolution and a rate marked with *
+            # Scan indented mode lines below this output for the active refresh rate
+            # (marked with * by xrandr, e.g. "59.95*+")
             for mode_idx in range(idx + 1, len(lines)):
                 mode_line = lines[mode_idx]
                 # Stop at the next output line
@@ -281,15 +292,14 @@ def get_displays_xrandr() -> List[Display]:
                 diag_mm = math.sqrt(d.width_mm ** 2 + d.height_mm ** 2)
                 d.diagonal_inches = round(diag_mm / 25.4)
 
-            # Read EDID for better info
+            # Enrich with EDID data (manufacturer, model, serial, precise dimensions)
             edid = read_edid_for_output(name)
             if edid:
                 d.manufacturer_id = edid.get("manufacturer_id", "")
                 d.manufacturer = edid.get("manufacturer", "")
                 d.model = edid.get("model", "")
                 d.serial = edid.get("serial", "")
-                # Use EDID dimensions if more precise
-                # Override diagonal if available, otherwise use EDID dimensions
+                # Prefer override diagonal (from --scan), then EDID mm, then xrandr mm
                 if "diagonal_override" in edid:
                     d.diagonal_inches = edid["diagonal_override"]
                 else:
@@ -307,7 +317,7 @@ def get_displays_xrandr() -> List[Display]:
 
 
 def get_displays_wlr() -> List[Display]:
-    """Get display info using wlr-randr (Sway, Hyprland, wlroots compositors)."""
+    """Get display info using wlr-randr (wlroots-based compositors: Sway, Hyprland, etc.)."""
     try:
         output = subprocess.check_output(["wlr-randr"], text=True, stderr=subprocess.DEVNULL)
     except (subprocess.CalledProcessError, FileNotFoundError):
@@ -316,7 +326,7 @@ def get_displays_wlr() -> List[Display]:
     displays = []
     current = None
     for line in output.split("\n"):
-        # Output line: DP-1 "Manufacturer Model (DP-1)"
+        # Non-indented line starts a new output block: e.g. 'DP-1 "Manufacturer Model"'
         m = re.match(r"^(\S+)\s+", line)
         if m and not line.startswith(" "):
             if current:
@@ -338,22 +348,22 @@ def get_displays_wlr() -> List[Display]:
                 current.diagonal_inches = round(
                     math.sqrt(current.width_mm**2 + current.height_mm**2) / 25.4
                 )
-            # Transform: normal | 90 | 180 | 270
+            # wlr-randr uses degrees; map to xrandr-style rotation names
             tm = re.match(r"Transform:\s*(\S+)", stripped)
             if tm:
                 t = tm.group(1)
                 rot_map = {"normal": "normal", "90": "left", "180": "inverted", "270": "right"}
                 current.rotation = rot_map.get(t, "normal")
-            # Modes: 2560x1440 px, 143.998001 Hz (preferred, current)
+            # Mode line with "(current)" suffix is the active mode
             mm = re.match(r"(\d+)x(\d+)\s+px,\s*([\d.]+)\s*Hz\s*\(.*current", stripped)
             if mm:
                 current.width = int(mm.group(1))
                 current.height = int(mm.group(2))
                 current.refresh_rate = float(mm.group(3))
-            # Enabled: yes/no
+            # Drop disabled outputs entirely
             em = re.match(r"Enabled:\s*no", stripped)
             if em:
-                current = None  # skip disabled outputs
+                current = None
 
     if current:
         displays.append(current)
@@ -408,6 +418,7 @@ def get_displays_kscreen() -> List[Display]:
                     current.width = int(gm.group(3))
                     current.height = int(gm.group(4))
             if "Rotation:" in line:
+                # kscreen-doctor uses bitmask values: 1=normal, 2=left, 4=inverted, 8=right
                 rm = re.search(r"Rotation:\s*(\d+)", line)
                 if rm:
                     rot_map = {0: "normal", 1: "normal", 2: "left", 4: "inverted", 8: "right"}
@@ -431,38 +442,41 @@ def get_displays_kscreen() -> List[Display]:
 
 
 def get_displays() -> List[Display]:
-    """Get displays using the best available method."""
+    """Detect displays via the best available backend.
+
+    Strategy: if WAYLAND_DISPLAY is set, try wlr-randr (wlroots) then
+    kscreen-doctor (KDE Plasma). Fall back to xrandr (works on X11 and XWayland).
+    """
     wayland = os.environ.get("WAYLAND_DISPLAY")
     if wayland:
-        # Try wlr-randr first (Sway, Hyprland, wlroots)
         displays = get_displays_wlr()
         if displays:
             return displays
-        # Try kscreen-doctor (KDE Wayland)
         displays = get_displays_kscreen()
         if displays:
             return displays
-    # Fallback to xrandr (X11 or XWayland)
     displays = get_displays_xrandr()
     return displays
 
 
 def get_gpu_mapping() -> dict:
-    """Map DRM card outputs to GPU info."""
+    """Map each DRM card to its GPU name (via lspci) and list of output ports.
+
+    Returns: {"card0": {"name": "NVIDIA ...", "outputs": [{"port": "HDMI-A-2", "connected": True}, ...]}}
+    """
     gpus = {}
     drm_dir = "/sys/class/drm"
     if not os.path.isdir(drm_dir):
         return gpus
 
     for entry in sorted(os.listdir(drm_dir)):
-        # Match card0, card1, card2
         m = re.match(r"^(card\d+)$", entry)
         if m:
             card = m.group(1)
             card_path = os.path.join(drm_dir, card)
             device_link = os.path.join(card_path, "device")
 
-            # Get GPU name via lspci
+            # Resolve the PCI address from the device symlink, then query lspci
             gpu_name = ""
             try:
                 pci_addr = os.path.basename(os.readlink(device_link))
@@ -473,13 +487,14 @@ def get_gpu_mapping() -> dict:
             except (OSError, subprocess.CalledProcessError):
                 pass
 
-            # Find connected outputs for this card
+            # Enumerate connector entries for this card (e.g. "card0-HDMI-A-2")
             outputs = []
             for sub in sorted(os.listdir(drm_dir)):
                 if sub.startswith(card + "-"):
-                    port = sub[len(card) + 1:]
+                    port = sub[len(card) + 1:]  # strip "card0-" prefix
                     status_path = os.path.join(drm_dir, sub, "status")
                     edid_path = os.path.join(drm_dir, sub, "edid")
+                    # Check connection via status file, fall back to non-empty EDID
                     connected = False
                     try:
                         with open(status_path) as f:
@@ -534,7 +549,7 @@ def print_table(displays: List[Display]):
         rot = f" rot={d.rotation}" if d.rotation and d.rotation != "normal" else ""
         diag = f'{d.diagonal_inches:.0f}"' if d.diagonal_inches else ""
         hz = f"{d.refresh_rate:.0f}Hz" if d.refresh_rate else ""
-        # Éviter "Samsung SAMSUNG" → juste "Samsung"
+        # Avoid "Samsung SAMSUNG" redundancy: suppress model if it matches manufacturer
         model = d.model if d.model.upper() != d.manufacturer.upper() else ""
         mfg_model = f"{d.manufacturer} {model}".strip()
         serial = d.serial if d.serial else ""
@@ -550,7 +565,16 @@ def print_table(displays: List[Display]):
 
 
 def draw_layout(displays: List[Display]):
-    """Draw ASCII art layout diagram with correct proportions."""
+    """Draw ASCII art layout diagram preserving relative positions and aspect ratios.
+
+    Algorithm:
+    1. Group displays into rows (y coordinates within 200px are merged).
+    2. Compute a global pixel-to-column scale from the widest row.
+    3. For each display, build a box whose width is proportional to pixel width
+       and whose height respects the display aspect ratio adjusted for the
+       ~2:1 terminal character height/width ratio.
+    4. Render rows top-to-bottom, placing boxes at their scaled x offsets.
+    """
     if not displays:
         return
 
@@ -559,9 +583,9 @@ def draw_layout(displays: List[Display]):
     print("=" * 6)
     print()
 
-    char_aspect = 2.0  # terminal character height/width ratio
+    char_aspect = 2.0  # terminal chars are ~2x taller than wide
 
-    # Group by row (similar y coordinate)
+    # Group displays into rows: merge if y coordinates differ by < 200px
     rows_groups = {}
     for d in displays:
         found = False
@@ -573,7 +597,7 @@ def draw_layout(displays: List[Display]):
         if not found:
             rows_groups[d.y] = [d]
 
-    # Global scale based on widest row
+    # Determine a single scale factor so all rows share consistent proportions
     global_min_x = min(d.x for d in displays)
     global_max_px = 0
     for group in rows_groups.values():
@@ -587,14 +611,16 @@ def draw_layout(displays: List[Display]):
     for ry in sorted(rows_groups.keys()):
         group = sorted(rows_groups[ry], key=lambda d: d.x)
 
-        # Build boxes
+        # Build ASCII box for each display in this row
         boxes = []
         for d in group:
             label = d.name
             if d.primary and d.manufacturer_id != "SAM":
                 label = d.name + "*"
 
+            # Box width from pixel width; ensure label fits with padding
             box_w = max(len(label) + 2, round(d.width / px_per_col))
+            # Box height from aspect ratio, compensated for char_aspect
             ratio_hw = d.height / d.width if d.width > 0 else 1
             box_h = max(3, round(box_w * ratio_hw / char_aspect))
 
@@ -608,11 +634,11 @@ def draw_layout(displays: List[Display]):
             box.append(top)
             boxes.append(box)
 
-        # Render with correct x positions
+        # Composite boxes side by side, respecting each display's x offset
         max_lines = max(len(b) for b in boxes)
         for i in range(max_lines):
             line = ""
-            cursor = 0
+            cursor = 0  # current column position in the output line
             for d, b in zip(group, boxes):
                 col_x = round((d.x - global_min_x) / px_per_col)
                 if col_x > cursor:
@@ -630,8 +656,7 @@ def draw_layout(displays: List[Display]):
 
 
 def list_priority(displays, connected_only=False):
-    """List displays sorted by priority order, with all GPU outputs."""
-    # Primary first, then by x position (left to right), then by y
+    """List displays sorted by priority: primary first, then left-to-right, top-to-bottom."""
     primary = [d for d in displays if d.primary]
     others = sorted([d for d in displays if not d.primary], key=lambda d: (d.y, d.x))
     ordered = primary + others
@@ -674,14 +699,18 @@ def list_priority(displays, connected_only=False):
 
 
 def scan_network(subnet=None):
-    """Scan network for Samsung SmartTVs and update overrides.json."""
+    """Scan the local /24 network for Samsung SmartTVs on port 8001.
+
+    For each TV found, queries the Samsung REST API for model/resolution/MAC,
+    then matches it to a connected Samsung EDID display by closest resolution.
+    Results are saved to overrides.json so future runs show TV model names.
+    """
     import socket
     import urllib.request
     import ipaddress
 
-    # Determine subnet
+    # Auto-detect subnet from the default route interface's IP
     if not subnet:
-        # Auto-detect from local IP
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 80))
@@ -699,18 +728,18 @@ def scan_network(subnet=None):
     displays = get_displays()
     samsung_displays = [d for d in displays if d.manufacturer_id == "SAM"]
 
-    # Scan each IP
+    # Probe each host on port 8001 (Samsung SmartTV WebSocket/REST API port)
     network = ipaddress.IPv4Network(subnet, strict=False)
     found_tvs = []
 
     for ip in network.hosts():
         ip_str = str(ip)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.settimeout(0.3)
+        sock.settimeout(0.3)  # fast fail for non-responsive hosts
         result = sock.connect_ex((ip_str, 8001))
         sock.close()
         if result == 0:
-            # Port 8001 open — try Samsung API
+            # Port open -- query Samsung REST API at /api/v2/
             try:
                 url = f"http://{ip_str}:8001/api/v2/"
                 req = urllib.request.Request(url)
@@ -740,13 +769,13 @@ def scan_network(subnet=None):
         print("No Samsung Smart TVs found on the network.")
         return
 
-    # Match TVs with connected EDID Samsung displays by resolution
+    # Match discovered TVs to connected Samsung EDID displays by resolution proximity
     import re
     overrides = get_overrides()
     updated = False
     matched_displays = set()
 
-    # Build lookup: for each Samsung display, get its EDID product code and resolution
+    # Build lookup of connected Samsung displays with their EDID product codes
     sam_edid_info = []
     for d in samsung_displays:
         edid = read_edid_for_output(d.name)
@@ -765,13 +794,13 @@ def scan_network(subnet=None):
         if rm:
             tv_w, tv_h = int(rm.group(1)), int(rm.group(2))
 
-        # Extract diagonal from TV name (e.g. '65" Neo QLED 8K' → 65)
+        # Extract diagonal size from the TV's friendly name (e.g. '65" Neo QLED 8K' -> 65)
         diag = 0
         dm = re.search(r'(\d{2,3})"?\s', tv["name"])
         if dm:
             diag = int(dm.group(1))
 
-        # Find best matching Samsung display by closest resolution
+        # Greedy match: pick the Samsung display with the closest max dimension
         best_match = None
         best_distance = float("inf")
         for info in sam_edid_info:
@@ -808,6 +837,7 @@ def scan_network(subnet=None):
             print()
 
     if updated:
+        # Persist overrides to user config dir; also copy to /etc if writable
         overrides["_comment"] = "Auto-generated by lsdisplay --scan. Key = MFG_ID + product_code_hex"
         home = os.environ.get("HOME", os.path.expanduser("~"))
         config_dir = os.path.join(home, ".config", "lsdisplay")
@@ -816,7 +846,6 @@ def scan_network(subnet=None):
         with open(config_path, "w") as f:
             json_mod.dump(overrides, f, indent=2, ensure_ascii=False)
         print(f"Overrides saved to {config_path}")
-        # Also copy to /etc if writable
         try:
             etc_dir = "/etc/lsdisplay"
             os.makedirs(etc_dir, exist_ok=True)
