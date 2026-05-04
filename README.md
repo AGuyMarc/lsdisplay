@@ -4,6 +4,8 @@ List connected displays with details and ASCII layout diagram.
 
 Like `lsusb`, `lspci`, `lscpu` — but for displays.
 
+A useful CLI tool for Linux users and admins. Zero-dependency — just Python 3.6+ and `/sys/class/drm`.
+
 ## Features
 
 - **EDID parsing** from `/sys/class/drm/*/edid`: manufacturer, model, serial number
