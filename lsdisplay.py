@@ -22,7 +22,12 @@ import re
 import shutil
 import subprocess
 import sys
-from dataclasses import dataclass, field, asdict
+try:
+    from dataclasses import dataclass, field, asdict
+except ImportError:
+    print("Error: Python 3.7+ is required (dataclasses module missing).", file=sys.stderr)
+    print("On AlmaLinux/RHEL 8: dnf install python39 && python3.9 lsdisplay.py", file=sys.stderr)
+    sys.exit(1)
 from typing import List, Optional, Tuple
 
 __version__ = "0.1.0"

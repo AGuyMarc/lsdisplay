@@ -4,7 +4,7 @@ List connected displays with details and ASCII layout diagram.
 
 Like `lsusb`, `lspci`, `lscpu` — but for displays.
 
-A useful CLI tool for Linux users and admins. Zero-dependency — just Python 3.6+ and `/sys/class/drm`.
+A useful CLI tool for Linux users and admins. Zero-dependency — just Python 3.7+ and `/sys/class/drm`.
 
 ## Features
 
@@ -13,7 +13,7 @@ A useful CLI tool for Linux users and admins. Zero-dependency — just Python 3.
 - **ASCII art layout diagram** with correct proportions
 - **JSON output** for scripting
 - Works on X11 and Wayland (KDE, Sway, etc.)
-- No external dependencies, Python 3.6+
+- No external dependencies, Python 3.7+
 
 ## Installation
 
@@ -67,7 +67,7 @@ LAYOUT
 
 ## Requirements
 
-- Python 3.6+
+- Python 3.7+
 - Linux with `/sys/class/drm` (any modern kernel)
 - `xrandr` (X11) or `kscreen-doctor` (KDE Wayland) or `wlr-randr` (wlroots Wayland)
 

@@ -14,7 +14,7 @@ setup(
             "lsdisplay=lsdisplay:main",
         ],
     },
-    python_requires=">=3.6",
+    python_requires=">=3.7",
     classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: Console",
