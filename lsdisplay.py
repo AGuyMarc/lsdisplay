@@ -301,6 +301,80 @@ def get_displays_xrandr() -> List[Display]:
     return displays
 
 
+def get_displays_wlr() -> List[Display]:
+    """Get display info using wlr-randr (Sway, Hyprland, wlroots compositors)."""
+    try:
+        output = subprocess.check_output(["wlr-randr"], text=True, stderr=subprocess.DEVNULL)
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return []
+
+    displays = []
+    current = None
+    for line in output.split("\n"):
+        # Output line: DP-1 "Manufacturer Model (DP-1)"
+        m = re.match(r"^(\S+)\s+", line)
+        if m and not line.startswith(" "):
+            if current:
+                displays.append(current)
+            current = Display(name=m.group(1))
+        if current and line.startswith("  "):
+            stripped = line.strip()
+            # Position: 1880,0
+            pm = re.match(r"Position:\s*(\d+),(\d+)", stripped)
+            if pm:
+                current.x = int(pm.group(1))
+                current.y = int(pm.group(2))
+            # Physical size: 597x336 mm
+            sm = re.match(r"Physical size:\s*(\d+)x(\d+)\s*mm", stripped)
+            if sm:
+                current.width_mm = int(sm.group(1))
+                current.height_mm = int(sm.group(2))
+                import math
+                current.diagonal_inches = round(
+                    math.sqrt(current.width_mm**2 + current.height_mm**2) / 25.4
+                )
+            # Transform: normal | 90 | 180 | 270
+            tm = re.match(r"Transform:\s*(\S+)", stripped)
+            if tm:
+                t = tm.group(1)
+                rot_map = {"normal": "normal", "90": "left", "180": "inverted", "270": "right"}
+                current.rotation = rot_map.get(t, "normal")
+            # Modes: 2560x1440 px, 143.998001 Hz (preferred, current)
+            mm = re.match(r"(\d+)x(\d+)\s+px,\s*([\d.]+)\s*Hz\s*\(.*current", stripped)
+            if mm:
+                current.width = int(mm.group(1))
+                current.height = int(mm.group(2))
+                current.refresh_rate = float(mm.group(3))
+            # Enabled: yes/no
+            em = re.match(r"Enabled:\s*no", stripped)
+            if em:
+                current = None  # skip disabled outputs
+
+    if current:
+        displays.append(current)
+
+    # Enrich with EDID
+    for d in displays:
+        edid = read_edid_for_output(d.name)
+        if edid:
+            d.manufacturer_id = edid.get("manufacturer_id", "")
+            d.manufacturer = edid.get("manufacturer", "")
+            d.model = edid.get("model", "")
+            d.serial = edid.get("serial", "")
+            if "diagonal_override" in edid:
+                d.diagonal_inches = edid["diagonal_override"]
+            else:
+                edid_w = edid.get("width_mm", 0)
+                edid_h = edid.get("height_mm", 0)
+                if edid_w > 0 and edid_h > 0:
+                    d.width_mm = edid_w
+                    d.height_mm = edid_h
+                    import math
+                    d.diagonal_inches = round(math.sqrt(edid_w**2 + edid_h**2) / 25.4)
+
+    return displays
+
+
 def get_displays_kscreen() -> List[Display]:
     """Fallback: get display info using kscreen-doctor (KDE Wayland)."""
     try:
@@ -353,9 +427,18 @@ def get_displays_kscreen() -> List[Display]:
 
 def get_displays() -> List[Display]:
     """Get displays using the best available method."""
-    displays = get_displays_xrandr()
-    if not displays:
+    wayland = os.environ.get("WAYLAND_DISPLAY")
+    if wayland:
+        # Try wlr-randr first (Sway, Hyprland, wlroots)
+        displays = get_displays_wlr()
+        if displays:
+            return displays
+        # Try kscreen-doctor (KDE Wayland)
         displays = get_displays_kscreen()
+        if displays:
+            return displays
+    # Fallback to xrandr (X11 or XWayland)
+    displays = get_displays_xrandr()
     return displays
 
 
