@@ -221,24 +221,182 @@ def parse_edid(data: bytes) -> dict:
     return result
 
 
-def read_edid_for_output(output_name: str) -> dict:
-    """Read EDID binary blob from /sys/class/drm/<card>-<output>/edid and parse it."""
+def _build_connector_id_map() -> dict:
+    """Build a mapping of connector_id -> sysfs EDID path.
+
+    Each /sys/class/drm/card*-*/connector_id file contains an integer that
+    matches the CONNECTOR_ID property exposed by xrandr (modesetting/i915/amdgpu).
+    This allows us to link xrandr output names (e.g. DP-1-3) to the correct
+    sysfs entry (e.g. card0-DP-5) even when names differ (MST hubs, evdi/DisplayLink).
+    """
     drm_dir = "/sys/class/drm"
+    cid_map = {}
     if not os.path.isdir(drm_dir):
+        return cid_map
+    for entry in os.listdir(drm_dir):
+        cid_path = os.path.join(drm_dir, entry, "connector_id")
+        if os.path.exists(cid_path):
+            try:
+                with open(cid_path) as f:
+                    cid = f.read().strip()
+                edid_path = os.path.join(drm_dir, entry, "edid")
+                if os.path.exists(edid_path):
+                    cid_map[cid] = edid_path
+            except (IOError, PermissionError):
+                pass
+    return cid_map
+
+_CONNECTOR_ID_MAP = None  # lazy singleton
+
+def _get_connector_id_map() -> dict:
+    global _CONNECTOR_ID_MAP
+    if _CONNECTOR_ID_MAP is None:
+        _CONNECTOR_ID_MAP = _build_connector_id_map()
+    return _CONNECTOR_ID_MAP
+
+
+def _get_xrandr_connector_ids() -> dict:
+    """Parse xrandr --properties to extract CONNECTOR_ID per output.
+
+    Returns a dict: {"DP-1-3": "42", "eDP-1": "51", ...}
+    Only available with modesetting/i915/amdgpu DDX; NVIDIA proprietary
+    driver does not expose this property.
+    """
+    try:
+        output = subprocess.check_output(
+            ["xrandr", "--properties"], text=True, stderr=subprocess.DEVNULL
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
         return {}
 
-    for entry in os.listdir(drm_dir):
-        # Match entries like "card0-HDMI-A-2" containing the output name
-        if output_name in entry:
-            edid_path = os.path.join(drm_dir, entry, "edid")
-            if os.path.exists(edid_path):
+    result = {}
+    current_output = None
+    for line in output.split("\n"):
+        # Output header: "DP-1-3 connected primary 1920x1080+0+0 ..."
+        m = re.match(r"^(\S+)\s+(?:connected|disconnected)", line)
+        if m:
+            current_output = m.group(1)
+        # Property line: "\tCONNECTOR_ID: 42"
+        elif current_output and "CONNECTOR_ID" in line:
+            cm = re.search(r"CONNECTOR_ID:\s*(\d+)", line)
+            if cm:
+                result[current_output] = cm.group(1)
+    return result
+
+_XRANDR_CONNECTOR_IDS = None  # lazy singleton
+
+def _get_xrandr_connector_ids_cached() -> dict:
+    global _XRANDR_CONNECTOR_IDS
+    if _XRANDR_CONNECTOR_IDS is None:
+        _XRANDR_CONNECTOR_IDS = _get_xrandr_connector_ids()
+    return _XRANDR_CONNECTOR_IDS
+
+
+def _parse_xrandr_edid_blocks() -> dict:
+    """Parse EDID hex blocks from xrandr --verbose as a last-resort fallback.
+
+    Returns a dict: {"DP-1-3": bytes, "eDP-1": bytes, ...}
+    Some drivers (Intel/AMD) expose EDID through xrandr properties.
+    """
+    try:
+        output = subprocess.check_output(
+            ["xrandr", "--verbose"], text=True, stderr=subprocess.DEVNULL
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return {}
+
+    result = {}
+    current_output = None
+    edid_lines = []
+    in_edid = False
+
+    for line in output.split("\n"):
+        m = re.match(r"^(\S+)\s+(?:connected|disconnected)", line)
+        if m:
+            # Save previous EDID block if any
+            if current_output and edid_lines:
+                hex_str = "".join(edid_lines)
                 try:
-                    with open(edid_path, "rb") as f:
-                        data = f.read()
-                    if len(data) >= 128:
-                        return parse_edid(data)
-                except (IOError, PermissionError):
+                    result[current_output] = bytes.fromhex(hex_str)
+                except ValueError:
                     pass
+            current_output = m.group(1)
+            edid_lines = []
+            in_edid = False
+        elif "EDID:" in line:
+            in_edid = True
+            edid_lines = []
+        elif in_edid:
+            stripped = line.strip()
+            if re.match(r"^[0-9a-fA-F]+$", stripped) and len(stripped) == 32:
+                edid_lines.append(stripped)
+            else:
+                in_edid = False
+
+    # Don't forget the last output
+    if current_output and edid_lines:
+        hex_str = "".join(edid_lines)
+        try:
+            result[current_output] = bytes.fromhex(hex_str)
+        except ValueError:
+            pass
+
+    return result
+
+_XRANDR_EDID_BLOCKS = None  # lazy singleton
+
+def _get_xrandr_edid_blocks() -> dict:
+    global _XRANDR_EDID_BLOCKS
+    if _XRANDR_EDID_BLOCKS is None:
+        _XRANDR_EDID_BLOCKS = _parse_xrandr_edid_blocks()
+    return _XRANDR_EDID_BLOCKS
+
+
+def read_edid_for_output(output_name: str) -> dict:
+    """Read and parse EDID for a display output, trying multiple strategies:
+
+    1. CONNECTOR_ID: match xrandr CONNECTOR_ID property to sysfs connector_id
+    2. Exact name match: look for /sys/class/drm/card*-<output_name>/edid
+    3. xrandr --verbose: parse EDID hex blocks from xrandr properties
+    """
+    drm_dir = "/sys/class/drm"
+
+    # Strategy 1: CONNECTOR_ID mapping (works for MST hubs, evdi/DisplayLink)
+    xrandr_cids = _get_xrandr_connector_ids_cached()
+    if output_name in xrandr_cids:
+        cid_map = _get_connector_id_map()
+        cid = xrandr_cids[output_name]
+        if cid in cid_map:
+            try:
+                with open(cid_map[cid], "rb") as f:
+                    data = f.read()
+                if len(data) >= 128:
+                    return parse_edid(data)
+            except (IOError, PermissionError):
+                pass
+
+    # Strategy 2: exact sysfs name match (e.g. "card0-HDMI-A-2" ends with "-HDMI-A-2")
+    if os.path.isdir(drm_dir):
+        suffix = "-" + output_name
+        for entry in os.listdir(drm_dir):
+            if entry.endswith(suffix):
+                edid_path = os.path.join(drm_dir, entry, "edid")
+                if os.path.exists(edid_path):
+                    try:
+                        with open(edid_path, "rb") as f:
+                            data = f.read()
+                        if len(data) >= 128:
+                            return parse_edid(data)
+                    except (IOError, PermissionError):
+                        pass
+
+    # Strategy 3: EDID from xrandr --verbose (last resort)
+    edid_blocks = _get_xrandr_edid_blocks()
+    if output_name in edid_blocks:
+        data = edid_blocks[output_name]
+        if len(data) >= 128:
+            return parse_edid(data)
+
     return {}
 
 
@@ -561,7 +719,8 @@ def print_table(displays: List[Display]):
         print(printf_fmt)
 
     print()
-    print(f"Total: {len(displays)} display(s) connected")
+    n = len(displays)
+    print(f"Total: {n} display{'s' if n != 1 else ''} connected")
 
 
 def draw_layout(displays: List[Display]):
