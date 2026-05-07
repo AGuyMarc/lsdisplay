@@ -6,6 +6,17 @@ Similar to lsusb, lspci, lscpu but for screens/monitors.
 Reads EDID from /sys/class/drm for manufacturer, model, serial number.
 Uses xrandr (or kscreen-doctor/wlr-randr on Wayland) for resolution and layout.
 
+Author: Guy-Marc Aprin <2026@gm.casa>
+
+  « La perfection est atteinte non quand il n'y a plus rien à ajouter,
+    mais quand il n'y a plus rien à retirer. »
+  « L'essentiel est invisible pour les yeux. »
+    — Antoine de Saint-Exupéry
+
+  "Perfection is achieved not when there is nothing more to add,
+   but when there is nothing left to take away."
+  "What is essential is invisible to the eye."
+
 Usage:
     lsdisplay              List all displays with ASCII layout
     lsdisplay --json       Output as JSON
@@ -30,7 +41,40 @@ except ImportError:
     sys.exit(1)
 from typing import List, Optional, Tuple
 
-__version__ = "0.1.0"
+__version__ = "0.1.1"
+
+def _get_version_string() -> str:
+    """Build version string with build date from git or file modification time.
+
+    Format: 0.1.0 (2026-05-07 jeu 01h15m00s)
+    """
+    import locale
+    try:
+        locale.setlocale(locale.LC_TIME, "fr_FR.UTF-8")
+    except locale.Error:
+        pass
+
+    # Try git commit date first
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        ts = subprocess.check_output(
+            ["git", "log", "-1", "--format=%ct"], text=True,
+            stderr=subprocess.DEVNULL, cwd=script_dir
+        ).strip()
+        from datetime import datetime
+        dt = datetime.fromtimestamp(int(ts))
+    except Exception:
+        # Fallback: file modification time
+        try:
+            from datetime import datetime
+            mtime = os.path.getmtime(__file__)
+            dt = datetime.fromtimestamp(mtime)
+        except Exception:
+            return __version__
+
+    day_name = dt.strftime("%a").lower().rstrip(".")
+    date_str = dt.strftime(f"%Y-%m-%d {day_name} %Hh%Mm%Ss")
+    return f"{__version__} ({date_str})"
 
 # PNP manufacturer IDs (subset of the official PNP ID registry)
 # Source: https://uefi.org/PNP_ID_List
@@ -1061,7 +1105,7 @@ license: GPL-2.0""",
         help="disable colored output"
     )
     parser.add_argument(
-        "--version", "-V", action="version", version=f"%(prog)s {__version__}"
+        "--version", "-V", action="version", version=f"%(prog)s {_get_version_string()}"
     )
     args = parser.parse_args()
 
