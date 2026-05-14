@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name="lsdisplay",
-    version="0.1.2",
+    version="0.1.3",
     description="List connected displays — like lsusb/lspci but for screens",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",

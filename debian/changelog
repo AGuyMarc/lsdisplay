@@ -1,3 +1,19 @@
+lsdisplay (0.1.3-1) unstable; urgency=medium
+
+  * Fix ASCII layout for non-uniform vertical arrangements: replace the
+    row-banding renderer with a 2D character canvas. Portrait monitors
+    whose y-range straddles two stacked landscape monitors are now drawn
+    correctly (previously rendered as three disjoint horizontal bands
+    with the portrait alone in the middle). Reported by bigbob.
+  * Boxes now compute their right/bottom edges from absolute coordinates
+    rather than independent width rounding, eliminating spurious "||"
+    artifacts between perfectly-adjacent displays.
+  * Lower debhelper-compat level from 13 to 11 in Build-Depends so the
+    source package builds out of the box on Ubuntu 22.04 LTS. Reported
+    by Creteil (bigbob) in issue #2.
+
+ -- Guy-Marc APRIN <2026@gm.casa>  Fri, 15 May 2026 00:20:00 +0200
+
 lsdisplay (0.1.2-1) unstable; urgency=medium
 
   * Add SPDX license header (GPL-2.0-or-later)

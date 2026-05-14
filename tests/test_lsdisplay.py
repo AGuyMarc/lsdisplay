@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from lsdisplay import (
     parse_edid, PNP_MANUFACTURERS, Display,
-    _load_overrides, get_overrides,
+    _load_overrides, get_overrides, render_layout,
 )
 
 
@@ -83,6 +83,97 @@ class TestOverrides(unittest.TestCase):
         overrides = get_overrides()
         for key in overrides:
             self.assertFalse(key.startswith("_"), f"Key {key} should be filtered")
+
+
+class TestRenderLayout(unittest.TestCase):
+    """Tests for the 2D-canvas layout renderer (regression for v0.1.3)."""
+
+    def _label_row(self, lines, label):
+        for i, ln in enumerate(lines):
+            if label in ln:
+                return i
+        raise AssertionError(f"label {label!r} not found in:\n" + "\n".join(lines))
+
+    def _next_horiz_edge(self, lines, start_row):
+        """First row at index >= start_row that looks like a horizontal box
+        edge: contains '+' corners and many '-' segments."""
+        for i in range(start_row, len(lines)):
+            if "+" in lines[i] and lines[i].count("-") > 10:
+                return i
+        return None
+
+    def test_empty_returns_empty(self):
+        self.assertEqual(render_layout([]), [])
+
+    def test_single_display_renders_box(self):
+        d = Display(name="DP-1", width=2560, height=1440, x=0, y=0, primary=True)
+        lines = render_layout([d], term_cols=80)
+        self.assertTrue(any("DP-1" in ln for ln in lines))
+        self.assertTrue(lines[0].startswith("+") and lines[0].endswith("+"))
+        self.assertTrue(lines[-1].startswith("+") and lines[-1].endswith("+"))
+
+    def test_portrait_straddles_two_stacked_landscapes(self):
+        """Bigbob case: HDMI-A-1 portrait on the left must vertically overlap
+        BOTH stacked Samsung monitors (DP-2 top, DP-1 bottom). Regression for
+        the row-banding bug fixed in v0.1.3 — the old algo rendered three
+        disjoint horizontal bands with HDMI alone in the middle."""
+        ds = [
+            Display(name="HDMI-A-1", width=1080, height=1920, x=0, y=733),
+            Display(name="DP-1", width=5120, height=1440, x=1080, y=1440,
+                    primary=True, manufacturer_id="SAM"),
+            Display(name="DP-2", width=5120, height=1440, x=1080, y=0,
+                    manufacturer_id="SAM"),
+        ]
+        lines = render_layout(ds, term_cols=80)
+        r_d2 = self._label_row(lines, "DP-2")
+        r_h = self._label_row(lines, "HDMI-A-1")
+        r_d1 = self._label_row(lines, "DP-1")
+        # HDMI's label is vertically between DP-2 and DP-1 labels
+        self.assertLess(r_d2, r_h)
+        self.assertLess(r_h, r_d1)
+        # DP-2 and DP-1 must share their horizontal edge: there must be a
+        # single horizontal edge row between their labels (NOT two with a
+        # blank gap, which is what the old banding algo produced).
+        edge_row = self._next_horiz_edge(lines, r_d2 + 1)
+        self.assertIsNotNone(edge_row, "no shared edge row found between DP-2 and DP-1")
+        self.assertLess(edge_row, r_d1)
+        # Row right after edge_row must be interior of DP-1 (few dashes),
+        # not another horizontal edge — proves there's no gap band.
+        interior = lines[edge_row + 1] if edge_row + 1 < len(lines) else ""
+        self.assertLess(interior.count("-"), 5,
+                        f"expected DP-1 interior right after shared edge at row "
+                        f"{edge_row}, got another edge: {interior!r}")
+
+    def test_dual_stacked_share_boundary(self):
+        ds = [
+            Display(name="DP-1", width=5120, height=1440, x=0, y=0,
+                    primary=True, manufacturer_id="SAM"),
+            Display(name="DP-2", width=5120, height=1440, x=0, y=1440,
+                    manufacturer_id="SAM"),
+        ]
+        lines = render_layout(ds, term_cols=80)
+        r_d1 = self._label_row(lines, "DP-1")
+        r_d2 = self._label_row(lines, "DP-2")
+        self.assertLess(r_d1, r_d2)
+        edge_row = self._next_horiz_edge(lines, r_d1 + 1)
+        self.assertIsNotNone(edge_row)
+        self.assertLess(edge_row, r_d2)
+        interior = lines[edge_row + 1] if edge_row + 1 < len(lines) else ""
+        self.assertLess(interior.count("-"), 5,
+                        "two horizontal edges in a row means there's a gap band")
+
+    def test_horizontal_row_no_double_pipe(self):
+        """Adjacent displays with touching x-coords must not render '||'
+        between them (regression for cumulative rounding error)."""
+        ds = [
+            Display(name="DP-1", width=1920, height=1080, x=0, y=0),
+            Display(name="DP-2", width=1920, height=1080, x=1920, y=0, primary=True),
+            Display(name="DP-3", width=1920, height=1080, x=3840, y=0),
+        ]
+        lines = render_layout(ds, term_cols=80)
+        for ln in lines:
+            self.assertNotIn("||", ln,
+                             f"adjacent boxes should share an edge, got: {ln!r}")
 
 
 class TestCLI(unittest.TestCase):

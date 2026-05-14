@@ -45,7 +45,7 @@ except ImportError:
     sys.exit(1)
 from typing import List, Optional, Tuple
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 def _get_version_string() -> str:
     """Build version string with build date from git or file modification time.
@@ -786,95 +786,103 @@ def print_table(displays: List[Display]):
     print(f"Total: {n} display{'s' if n != 1 else ''} connected")
 
 
-def draw_layout(displays: List[Display]):
-    """Draw ASCII art layout diagram preserving relative positions and aspect ratios.
+def render_layout(displays: List[Display], term_cols: int = None) -> List[str]:
+    """Render the layout diagram as a list of lines (no header, no trailing blank).
 
-    Algorithm:
-    1. Group displays into rows (y coordinates within 200px are merged).
-    2. Compute a global pixel-to-column scale from the widest row.
-    3. For each display, build a box whose width is proportional to pixel width
-       and whose height respects the display aspect ratio adjusted for the
-       ~2:1 terminal character height/width ratio.
-    4. Render rows top-to-bottom, placing boxes at their scaled x offsets.
+    Each display is painted onto a 2D character canvas at its scaled (x, y)
+    position. This correctly handles partial vertical overlaps — e.g. a
+    portrait monitor on the left whose y-range straddles two stacked landscape
+    monitors on the right — which a row-banding approach cannot represent.
+
+    Larger displays are drawn first so smaller boxes paint on top: their
+    corners stay visible at shared edges instead of being erased by a
+    neighbour's continuous edge.
     """
     if not displays:
-        return
+        return []
 
+    char_aspect = 2.0  # terminal chars are ~2x taller than wide
+
+    min_x = min(d.x for d in displays)
+    min_y = min(d.y for d in displays)
+    max_x = max(d.x + d.width for d in displays)
+    max_y = max(d.y + d.height for d in displays)
+    span_x = max(1, max_x - min_x)
+    span_y = max(1, max_y - min_y)
+
+    if term_cols is None:
+        term_cols = shutil.get_terminal_size().columns
+    target_cols = min(70, max(10, term_cols - 4))
+    px_per_col = span_x / target_cols
+    px_per_row = px_per_col * char_aspect
+
+    total_cols = target_cols + 1  # +1 for the rightmost box's right edge
+    total_rows = max(3, int(round(span_y / px_per_row)) + 1)
+
+    canvas = [[" "] * total_cols for _ in range(total_rows)]
+
+    def place(r, c, ch):
+        if 0 <= r < total_rows and 0 <= c < total_cols:
+            canvas[r][c] = ch
+
+    # Largest first so smaller boxes overwrite at shared edges (keeps their
+    # corners visible). Primary as tie-breaker so its label wins on identical
+    # geometries.
+    def order_key(d):
+        return (-(d.width * d.height), 0 if d.primary else 1)
+
+    for d in sorted(displays, key=order_key):
+        label = d.name
+        if d.primary and d.manufacturer_id != "SAM":
+            label = d.name + "*"
+
+        # Compute box edges from absolute coordinates so adjacent displays
+        # always share a column / row (avoids 1-cell gaps from independent
+        # rounding of width/height).
+        col_x = int(round((d.x - min_x) / px_per_col))
+        col_xr = int(round((d.x + d.width - min_x) / px_per_col))
+        row_y = int(round((d.y - min_y) / px_per_row))
+        row_yb = int(round((d.y + d.height - min_y) / px_per_row))
+        box_w = max(len(label) + 2, col_xr - col_x)
+        box_h = max(3, row_yb - row_y)
+
+        # Clamp to canvas
+        if col_x + box_w >= total_cols:
+            box_w = max(3, total_cols - col_x - 1)
+        if row_y + box_h >= total_rows:
+            box_h = max(3, total_rows - row_y - 1)
+
+        # Top and bottom edges
+        for c in range(col_x, col_x + box_w + 1):
+            corner = (c == col_x) or (c == col_x + box_w)
+            place(row_y, c, "+" if corner else "-")
+            place(row_y + box_h, c, "+" if corner else "-")
+        # Left and right edges
+        for r in range(row_y + 1, row_y + box_h):
+            place(r, col_x, "|")
+            place(r, col_x + box_w, "|")
+        # Centred label on the middle interior row
+        if box_h >= 3 and box_w >= 3:
+            mid_r = row_y + box_h // 2
+            label_text = label[: box_w - 1]
+            start_c = col_x + 1 + (box_w - 1 - len(label_text)) // 2
+            for i, ch in enumerate(label_text):
+                place(mid_r, start_c + i, ch)
+
+    return ["".join(row).rstrip() for row in canvas]
+
+
+def draw_layout(displays: List[Display]):
+    """Print the LAYOUT section to stdout."""
+    if not displays:
+        return
     print()
     print("LAYOUT")
     print("=" * 6)
     print()
-
-    char_aspect = 2.0  # terminal chars are ~2x taller than wide
-
-    # Group displays into rows: merge if y coordinates differ by < 200px
-    rows_groups = {}
-    for d in displays:
-        found = False
-        for ry in rows_groups:
-            if abs(d.y - ry) < 200:
-                rows_groups[ry].append(d)
-                found = True
-                break
-        if not found:
-            rows_groups[d.y] = [d]
-
-    # Determine a single scale factor so all rows share consistent proportions
-    global_min_x = min(d.x for d in displays)
-    global_max_px = 0
-    for group in rows_groups.values():
-        row_px = max(d.x + d.width for d in group) - min(d.x for d in group)
-        if row_px > global_max_px:
-            global_max_px = row_px
-
-    target_cols = min(70, shutil.get_terminal_size().columns - 4)
-    px_per_col = global_max_px / target_cols if target_cols > 0 else 1
-
-    for ry in sorted(rows_groups.keys()):
-        group = sorted(rows_groups[ry], key=lambda d: d.x)
-
-        # Build ASCII box for each display in this row
-        boxes = []
-        for d in group:
-            label = d.name
-            if d.primary and d.manufacturer_id != "SAM":
-                label = d.name + "*"
-
-            # Box width from pixel width; ensure label fits with padding
-            box_w = max(len(label) + 2, round(d.width / px_per_col))
-            # Box height from aspect ratio, compensated for char_aspect
-            ratio_hw = d.height / d.width if d.width > 0 else 1
-            box_h = max(3, round(box_w * ratio_hw / char_aspect))
-
-            top = "+" + "-" * box_w + "+"
-            empty = "|" + " " * box_w + "|"
-            mid = "|" + label.center(box_w) + "|"
-
-            box = [top]
-            for r in range(box_h):
-                box.append(mid if r == box_h // 2 else empty)
-            box.append(top)
-            boxes.append(box)
-
-        # Composite boxes side by side, respecting each display's x offset
-        max_lines = max(len(b) for b in boxes)
-        for i in range(max_lines):
-            line = ""
-            cursor = 0  # current column position in the output line
-            for d, b in zip(group, boxes):
-                col_x = round((d.x - global_min_x) / px_per_col)
-                if col_x > cursor:
-                    line += " " * (col_x - cursor)
-                    cursor = col_x
-                if i < len(b):
-                    line += b[i]
-                    cursor += len(b[i])
-                else:
-                    w = len(b[0])
-                    line += " " * w
-                    cursor += w
-            print("  " + line)
-        print()
+    for line in render_layout(displays):
+        print("  " + line)
+    print()
 
 
 def list_priority(displays, connected_only=False):
