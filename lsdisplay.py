@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 Guy-Marc APRIN <2026@gm.casa>
+# NB: contact email rotates yearly — 2027@gm.casa in 2027, etc.
 """
 lsdisplay - List connected displays with details and layout diagram.
 
@@ -6,7 +9,8 @@ Similar to lsusb, lspci, lscpu but for screens/monitors.
 Reads EDID from /sys/class/drm for manufacturer, model, serial number.
 Uses xrandr (or kscreen-doctor/wlr-randr on Wayland) for resolution and layout.
 
-Author: Guy-Marc Aprin <2026@gm.casa>
+Author: Guy-Marc APRIN <2026@gm.casa>
+        NB: contact email rotates yearly — 2027@gm.casa in 2027, etc.
 
   « La perfection est atteinte non quand il n'y a plus rien à ajouter,
     mais quand il n'y a plus rien à retirer. »
@@ -41,7 +45,7 @@ except ImportError:
     sys.exit(1)
 from typing import List, Optional, Tuple
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 def _get_version_string() -> str:
     """Build version string with build date from git or file modification time.
@@ -235,10 +239,25 @@ def parse_edid(data: bytes) -> dict:
             elif tag == 0xFF:  # Monitor serial string descriptor
                 serial_str = text
 
+    # Sanity check: some cheap displays put pixel dimensions in the DTD mm fields
+    # (e.g. 800x1280 pixels reported as 800x1280 mm = 59" instead of 8").
+    # Also catch unreasonably large values (> 2000mm = ~80").
+    # In these cases, prefer the coarse size from bytes 21-22.
+    coarse_w = data[21] * 10  # cm -> mm
+    coarse_h = data[22] * 10
+    if width_mm > 0 and coarse_w > 0 and coarse_h > 0:
+        import math
+        dtd_diag = math.sqrt(width_mm**2 + height_mm**2) / 25.4
+        coarse_diag = math.sqrt(coarse_w**2 + coarse_h**2) / 25.4
+        # If DTD diagonal is more than 2x the coarse diagonal, DTD is bogus
+        if dtd_diag > 2 * coarse_diag and coarse_diag > 0:
+            width_mm = coarse_w
+            height_mm = coarse_h
+
     # Fallback: bytes 21-22 give coarse physical size in centimeters
     if width_mm == 0:
-        width_mm = data[21] * 10
-        height_mm = data[22] * 10
+        width_mm = coarse_w
+        height_mm = coarse_h
 
     result = {
         "manufacturer_id": mfg_id,

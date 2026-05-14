@@ -1,3 +1,14 @@
+lsdisplay (0.1.2-1) unstable; urgency=medium
+
+  * Add SPDX license header (GPL-2.0-or-later)
+  * Sanity check on EDID detailed timing (DTD): prefer coarse size from
+    bytes 21-22 when DTD diagonal exceeds 2× coarse diagonal — fixes ~8"
+    displays appearing as 59" when the DTD field contains pixels instead
+    of millimetres (e.g. SGN L01N8A, BOE panels). Reported by Blaise on
+    LinuxFr.org.
+
+ -- Guy-Marc APRIN <2026@gm.casa>  Thu, 14 May 2026 21:51:04 +0200
+
 lsdisplay (0.1.1-1) unstable; urgency=medium
 
   * Initial release
