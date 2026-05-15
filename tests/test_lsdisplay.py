@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 Guy-Marc APRIN <2026@gm.casa>
+# NB: contact email rotates yearly — 2027@gm.casa in 2027, etc.
 """Tests unitaires pour lsdisplay."""
 import json
 import os

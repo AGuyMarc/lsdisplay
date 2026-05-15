@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 Guy-Marc APRIN <2026@gm.casa>
+# NB: contact email rotates yearly — 2027@gm.casa in 2027, etc.
 from setuptools import setup
 
 setup(
@@ -6,7 +9,8 @@ setup(
     description="List connected displays — like lsusb/lspci but for screens",
     long_description=open("README.md").read(),
     long_description_content_type="text/markdown",
-    author="Guy-Marc Aprin",
+    author="Guy-Marc APRIN",
+    author_email="2026@gm.casa",
     license="GPL-2.0",
     py_modules=["lsdisplay"],
     entry_points={
