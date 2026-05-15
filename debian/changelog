@@ -1,3 +1,17 @@
+lsdisplay (0.1.4-1) unstable; urgency=medium
+
+  * Fix Debian packaging regression introduced in 0.1.3:
+    - Install man page via debian/lsdisplay.manpages (was missing from .deb).
+    - Install README.md via debian/lsdisplay.docs.
+    - Add Debian-format debian/copyright file.
+    - Move /usr/bin/lsdisplay symlink from postinst hack to
+      debian/lsdisplay.links (now visible in dpkg-deb -c, no runtime hack).
+    - Remove now-unused debian/postinst (debhelper auto-handles man-db).
+  * Fix Maintainer in debian/control: 'Aprin' -> 'APRIN' to match the
+    upstream convention applied across all source headers.
+
+ -- Guy-Marc APRIN <2026@gm.casa>  Fri, 15 May 2026 19:30:00 +0200
+
 lsdisplay (0.1.3-1) unstable; urgency=medium
 
   * Fix ASCII layout for non-uniform vertical arrangements: replace the
