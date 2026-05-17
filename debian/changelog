@@ -1,3 +1,17 @@
+lsdisplay (0.2.0-1) unstable; urgency=medium
+
+  * Add CLI override management (CRUD): --override-list, --override-add
+    (interactive wizard), --override-set with --override-model/diagonal/note
+    (programmatic), and --override-remove. Wizard reads detected displays,
+    derives the MFG_ID+product_code_hex key, and prompts for new values with
+    sensible defaults from the current EDID.
+  * Refactor: extract _save_overrides() helper from --scan code path so all
+    write-paths share the same persistence logic.
+  * Document new commands in argparse epilog examples.
+  * Bump version to 0.2.0 (minor bump: new public CLI surface).
+
+ -- Guy-Marc APRIN <2026@gm.casa>  Sun, 17 May 2026 18:45:00 +0200
+
 lsdisplay (0.1.4-1) unstable; urgency=medium
 
   * Fix Debian packaging regression introduced in 0.1.3:

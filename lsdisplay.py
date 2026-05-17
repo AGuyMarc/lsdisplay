@@ -45,7 +45,7 @@ except ImportError:
     sys.exit(1)
 from typing import List, Optional, Tuple
 
-__version__ = "0.1.3"
+__version__ = "0.2.0"
 
 def _get_version_string() -> str:
     """Build version string with build date from git or file modification time.
@@ -189,6 +189,154 @@ def get_overrides():
     if _OVERRIDES is None:
         _OVERRIDES = _load_overrides()
     return _OVERRIDES
+
+
+def _save_overrides(overrides_dict):
+    """Persist overrides dict to ~/.config/lsdisplay/overrides.json.
+
+    Returns the path written. Re-adds the documentary _comment key.
+    """
+    home = os.environ.get("HOME", os.path.expanduser("~"))
+    config_dir = os.path.join(home, ".config", "lsdisplay")
+    os.makedirs(config_dir, exist_ok=True)
+    config_path = os.path.join(config_dir, "overrides.json")
+    clean = {k: v for k, v in overrides_dict.items() if not k.startswith("_")}
+    clean["_comment"] = (
+        "Display overrides keyed by MFG_ID + product_code_hex (e.g. SAM7513). "
+        "Auto-generated or edited by lsdisplay --override-* commands."
+    )
+    with open(config_path, "w") as f:
+        json_mod.dump(clean, f, indent=2, ensure_ascii=False)
+    return config_path
+
+
+def cmd_override_list():
+    """Print current overrides in human-readable form."""
+    overrides = _load_overrides()
+    if not overrides:
+        print("No overrides configured.")
+        print("Default location: ~/.config/lsdisplay/overrides.json")
+        print("Use 'lsdisplay --override-add' to add an override interactively.")
+        return
+    print(f"Overrides ({len(overrides)} entries):")
+    print()
+    for key in sorted(overrides):
+        ov = overrides[key]
+        print(f"  {key}:")
+        for field in ("model", "diagonal", "note", "serial"):
+            if field in ov:
+                val = ov[field]
+                if field == "diagonal":
+                    val = f'{val}"'
+                print(f"    {field:<10s}: {val}")
+        print()
+
+
+def cmd_override_remove(key):
+    """Remove an override by key (e.g. SAM7513)."""
+    overrides = _load_overrides()
+    if key not in overrides:
+        print(f"Override key '{key}' not found.", file=sys.stderr)
+        keys = ", ".join(sorted(k for k in overrides if not k.startswith("_")))
+        print(f"Existing keys: {keys or '(none)'}", file=sys.stderr)
+        sys.exit(1)
+    removed = overrides.pop(key)
+    path = _save_overrides(overrides)
+    print(f"Removed override '{key}': {removed}")
+    print(f"Saved to {path}")
+
+
+def cmd_override_set(key, model=None, diagonal=None, note=None):
+    """Programmatically set/update an override (use with --override-model/diagonal/note)."""
+    if not (model or diagonal or note):
+        print("Nothing to set. Provide at least one of: --override-model, "
+              "--override-diagonal, --override-note", file=sys.stderr)
+        sys.exit(1)
+    overrides = _load_overrides()
+    entry = overrides.get(key, {})
+    if model:
+        entry["model"] = model
+    if diagonal is not None:
+        entry["diagonal"] = float(diagonal)
+    if note:
+        entry["note"] = note
+    overrides[key] = entry
+    path = _save_overrides(overrides)
+    print(f"Set override '{key}': {entry}")
+    print(f"Saved to {path}")
+
+
+def cmd_override_add():
+    """Interactive wizard: pick a detected display, edit its override."""
+    displays = get_displays()
+    if not displays:
+        print("No displays detected — wizard cannot proceed.", file=sys.stderr)
+        sys.exit(1)
+    overrides = _load_overrides()
+    candidates = []
+    for d in displays:
+        edid = read_edid_for_output(d.name)
+        mfg = edid.get("manufacturer_id") or d.manufacturer_id
+        pc = edid.get("product_code")
+        if not mfg or pc is None:
+            continue
+        key = f"{mfg}{pc:04X}"
+        candidates.append({"display": d, "edid": edid, "key": key, "exists": key in overrides})
+    if not candidates:
+        print("No display has readable EDID — cannot derive an override key.", file=sys.stderr)
+        sys.exit(1)
+    print()
+    print("Detected displays:")
+    print()
+    for i, c in enumerate(candidates, 1):
+        d = c["display"]
+        diag = f'{d.diagonal_inches:.0f}"' if d.diagonal_inches else "?"
+        mark = " ← already overridden" if c["exists"] else ""
+        print(f"  {i}. {d.name:<12s} {d.manufacturer or d.manufacturer_id:<14s} "
+              f"{d.model:<20s} {diag:>4s}  key={c['key']}{mark}")
+    print()
+    raw = input(f"Select display [1-{len(candidates)}] (q to quit): ").strip()
+    if raw.lower() in ("", "q", "quit", "exit"):
+        print("Cancelled.")
+        return
+    try:
+        chosen = candidates[int(raw) - 1]
+    except (ValueError, IndexError):
+        print("Invalid choice.", file=sys.stderr)
+        sys.exit(1)
+    d = chosen["display"]
+    key = chosen["key"]
+    current = overrides.get(key, {})
+    cur_model = current.get("model") or d.model or ""
+    cur_diag = current.get("diagonal") or (d.diagonal_inches if d.diagonal_inches else "")
+    cur_note = current.get("note", "")
+    print()
+    print(f"Editing override for key {key}")
+    print(f"  Current model    : {cur_model or '(none)'}")
+    print(f"  Current diagonal : {cur_diag or '(none)'}\"")
+    print(f"  Current note     : {cur_note or '(none)'}")
+    print()
+    new_model = input(f"New model? [{cur_model}]: ").strip() or cur_model
+    new_diag_s = input(f"New diagonal (inches)? [{cur_diag}]: ").strip() or str(cur_diag) if cur_diag else ""
+    new_note = input(f"Note? [{cur_note}]: ").strip() or cur_note
+    entry = {}
+    if new_model:
+        entry["model"] = new_model
+    if new_diag_s:
+        try:
+            entry["diagonal"] = float(new_diag_s)
+        except ValueError:
+            print(f"Invalid diagonal '{new_diag_s}', ignoring.", file=sys.stderr)
+    if new_note:
+        entry["note"] = new_note
+    if not entry:
+        print("No values provided — nothing saved.")
+        return
+    overrides[key] = entry
+    path = _save_overrides(overrides)
+    print()
+    print(f"✓ Saved to {path}")
+    print(f"  {key}: {entry}")
 
 
 def parse_edid(data: bytes) -> dict:
@@ -1101,6 +1249,10 @@ def main():
   lsdisplay --no-layout  skip the ASCII art diagram
   lsdisplay --scan       scan network for Smart TVs and auto-configure
   lsdisplay --list-priority  show display priority order
+  lsdisplay --override-list  show current display overrides
+  lsdisplay --override-add   interactive wizard to add an override
+  lsdisplay --override-set SAM7513 --override-model QN65QN900B --override-diagonal 65 --override-note Salon
+  lsdisplay --override-remove SAM7513
   lsdisplay --json | jq '.[].manufacturer'
 
 source: https://github.com/AGuyMarc/lsdisplay
@@ -1132,11 +1284,50 @@ license: GPL-2.0""",
         help="disable colored output"
     )
     parser.add_argument(
+        "--override-list", action="store_true",
+        help="list current display overrides"
+    )
+    parser.add_argument(
+        "--override-add", action="store_true",
+        help="interactively add an override for a detected display (wizard)"
+    )
+    parser.add_argument(
+        "--override-set", metavar="KEY",
+        help="programmatically set an override (use with --override-model/diagonal/note)"
+    )
+    parser.add_argument(
+        "--override-remove", metavar="KEY",
+        help="remove an override by key (e.g. SAM7513)"
+    )
+    parser.add_argument(
+        "--override-model", help="model name (with --override-set)"
+    )
+    parser.add_argument(
+        "--override-diagonal", type=float, help="diagonal in inches (with --override-set)"
+    )
+    parser.add_argument(
+        "--override-note", help="note/description (with --override-set)"
+    )
+    parser.add_argument(
         "--version", "-V", action="version", version=f"%(prog)s {_get_version_string()}"
     )
     args = parser.parse_args()
 
     _init_color(args.no_color)
+
+    if args.override_list:
+        cmd_override_list()
+        return
+    if args.override_add:
+        cmd_override_add()
+        return
+    if args.override_set:
+        cmd_override_set(args.override_set, args.override_model,
+                         args.override_diagonal, args.override_note)
+        return
+    if args.override_remove:
+        cmd_override_remove(args.override_remove)
+        return
 
     if args.scan:
         subnet = None if args.scan == "auto" else args.scan
