@@ -2,9 +2,11 @@
 
 List connected displays with details and ASCII layout diagram.
 
-Like `lsusb`, `lspci`, `lscpu` — but for displays.
+Like `lsusb`, `lspci`, `lscpu`, `lsblk`, `lsmem` — but for displays.
 
 A useful CLI tool for Linux users and admins. Zero-dependency — just Python 3.7+ and `/sys/class/drm`.
+
+**Companion tool:** [`lsgpu`](https://github.com/AGuyMarc/lsgpu) — list the GPUs that drive those displays (with NVIDIA/AMD stats).
 
 ## Features
 
@@ -103,6 +105,20 @@ LAYOUT
 3. Maps PNP IDs to human-readable names (Samsung, Dell, Iiyama, etc.)
 4. Uses `xrandr` output for resolution, position, rotation
 5. Draws ASCII art layout proportional to actual pixel dimensions
+
+## See also
+
+Hardware enumeration `ls*` family on Linux:
+
+- [`lsgpu`](https://github.com/AGuyMarc/lsgpu) — GPUs (NVIDIA/AMD/Intel) with stats and output mapping (companion to this tool)
+- `lscpu` — CPU architecture info
+- `lspci` — PCI devices
+- `lsusb` — USB devices
+- `lsblk` — block devices (disks, partitions)
+- `lsmem` — memory ranges
+- `lsmod` — kernel modules
+- `lsipc` — IPC facilities
+- `lsns` — namespaces
 
 ## License
 
