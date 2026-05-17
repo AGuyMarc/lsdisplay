@@ -17,7 +17,32 @@ A useful CLI tool for Linux users and admins. Zero-dependency — just Python 3.
 
 ## Installation
 
+### Debian / Ubuntu (.deb)
+
+Download the `.deb` from the [Releases page](https://github.com/AGuyMarc/lsdisplay/releases/latest), then:
+
 ```bash
+sudo dpkg -i lsdisplay_X.Y.Z-1_all.deb
+```
+
+The package installs `/usr/bin/lsdisplay`, the man page `lsdisplay(1)`, and documentation.
+
+### Arch Linux / Manjaro (AUR)
+
+Available in the AUR thanks to [@seraf1](https://aur.archlinux.org/account/seraf1):
+
+```bash
+yay -S lsdisplay-git
+```
+
+Package page: https://aur.archlinux.org/packages/lsdisplay-git
+
+### From source
+
+```bash
+git clone https://github.com/AGuyMarc/lsdisplay
+cd lsdisplay
+
 # System-wide
 sudo cp lsdisplay.py /usr/local/bin/lsdisplay
 sudo chmod +x /usr/local/bin/lsdisplay
