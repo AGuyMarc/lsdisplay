@@ -45,12 +45,12 @@ except ImportError:
     sys.exit(1)
 from typing import List, Optional, Tuple
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 def _get_version_string() -> str:
     """Build version string with build date from git or file modification time.
 
-    Format: 0.1.0 (2026-05-07 jeu 01h15m00s)
+    Format: 0.2.1 (2026-05-18 lun 22h00m00s)
     """
     import locale
     try:

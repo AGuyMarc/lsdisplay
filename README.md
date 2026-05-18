@@ -24,7 +24,7 @@ A useful CLI tool for Linux users and admins. Zero-dependency — just Python 3.
 Download the `.deb` from the [Releases page](https://github.com/AGuyMarc/lsdisplay/releases/latest), then:
 
 ```bash
-sudo dpkg -i lsdisplay_X.Y.Z-1_all.deb
+sudo dpkg -i lsdisplay_0.2.1-1_all.deb
 ```
 
 The package installs `/usr/bin/lsdisplay`, the man page `lsdisplay(1)`, and documentation.

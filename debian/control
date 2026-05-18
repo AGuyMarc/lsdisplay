@@ -8,7 +8,7 @@ Homepage: https://github.com/AGuyMarc/lsdisplay
 
 Package: lsdisplay
 Architecture: all
-Depends: python3 (>= 3.6), ${misc:Depends}
+Depends: python3 (>= 3.7), ${misc:Depends}
 Recommends: xrandr
 Description: List connected displays with details and ASCII layout
  lsdisplay lists all connected displays/monitors with manufacturer,

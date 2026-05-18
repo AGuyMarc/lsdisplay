@@ -1,3 +1,16 @@
+lsdisplay (0.2.1-1) unstable; urgency=medium
+
+  * Fix debian/control: bump minimum Python from 3.6 to 3.7, aligning with
+    setup.py's python_requires=">=3.7" (the code uses f-strings and dataclasses
+    that require 3.7+; the 3.6 entry was a stale leftover).
+  * README.md: installation example now uses the exact filename
+    (lsdisplay_0.2.1-1_all.deb) instead of an X.Y.Z placeholder.
+  * Refresh docstring example date in lsdisplay.py.
+  * Cleanup: move RELEASING.md, old .deb/.bak/debian_backup and other internal
+    notes to a local .info/ directory (not shipped).
+
+ -- Guy-Marc APRIN <2026@gm.casa>  Mon, 18 May 2026 22:15:00 +0200
+
 lsdisplay (0.2.0-1) unstable; urgency=medium
 
   * Add CLI override management (CRUD): --override-list, --override-add
