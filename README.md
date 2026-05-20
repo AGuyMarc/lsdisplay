@@ -4,7 +4,7 @@ List connected displays with details and ASCII layout diagram.
 
 Like `lsusb`, `lspci`, `lscpu`, `lsblk`, `lsmem` — but for displays.
 
-A useful CLI tool for Linux users and admins. Zero-dependency — just Python 3.7+ and `/sys/class/drm`.
+A useful CLI tool for Linux users and admins. Very few dependencies — just xdg, Python 3.7+ and `/sys/class/drm`.
 
 **Companion tool:** [`lsgpu`](https://github.com/AGuyMarc/lsgpu) — list the GPUs that drive those displays (with NVIDIA/AMD stats).
 
@@ -15,7 +15,7 @@ A useful CLI tool for Linux users and admins. Zero-dependency — just Python 3.
 - **ASCII art layout diagram** with correct proportions
 - **JSON output** for scripting
 - Works on X11 and Wayland (KDE, Sway, etc.)
-- No external dependencies, Python 3.7+
+- Few external dependencies (xdg), Python 3.7+
 
 ## Installation
 
