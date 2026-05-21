@@ -27,7 +27,7 @@ Usage:
     lsdisplay --no-layout  Skip the layout diagram
     lsdisplay --short      Compact one-line-per-display output
 
-License: GPL-2.0
+License: GPL-2.0-or-later
 """
 
 import argparse
@@ -1256,7 +1256,7 @@ def main():
   lsdisplay --json | jq '.[].manufacturer'
 
 source: https://github.com/AGuyMarc/lsdisplay
-license: GPL-2.0""",
+License: GPL-2.0-or-later""",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument(
