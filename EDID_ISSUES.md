@@ -1,4 +1,4 @@
-# EDID Issues — Samsung Smart TVs
+# EDID Issues — Samsung Smart TVs (2026-05-03 Sunday)
 
 ## Problem
 
