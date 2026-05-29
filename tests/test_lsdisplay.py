@@ -5,6 +5,7 @@
 """Tests unitaires pour lsdisplay."""
 import json
 import os
+import re
 import subprocess
 import sys
 import unittest
@@ -219,6 +220,40 @@ class TestCLI(unittest.TestCase):
         r = self._run("--no-layout", "--no-color")
         if r.returncode == 0:
             self.assertNotIn("\033[", r.stdout)
+
+
+class TestVersionConsistency(unittest.TestCase):
+    """Garde-fou anti-récidive : les 4 déclarations de version doivent rester
+    synchronisées. Sinon `lsdisplay --version` ment et les paquets sont
+    incohérents. Voir RELEASING.md (oubli classique sur __version__ et la
+    page de man, drift v0.1.3->v0.1.4 non détecté pendant 2 jours)."""
+
+    def _read(self, relpath):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(root, relpath), encoding="utf-8") as f:
+            return f.read()
+
+    def _grep(self, relpath, pattern, label):
+        m = re.search(pattern, self._read(relpath), re.M)
+        self.assertIsNotNone(m, f"{label}: version introuvable dans {relpath}")
+        return m.group(1)
+
+    def test_all_version_sources_match(self):
+        versions = {
+            "lsdisplay.py (__version__)":
+                self._grep("lsdisplay.py", r'^__version__\s*=\s*["\']([^"\']+)["\']', "__version__"),
+            "setup.py":
+                self._grep("setup.py", r'version\s*=\s*["\']([^"\']+)["\']', "setup.py"),
+            "lsdisplay.1 (.TH)":
+                self._grep("lsdisplay.1", r'"lsdisplay\s+([0-9][0-9.]*)"', "man .TH"),
+            "debian/changelog":
+                self._grep("debian/changelog", r'^\S+\s+\(([0-9][0-9.]*)-\d+\)', "changelog"),
+        }
+        self.assertEqual(
+            len(set(versions.values())), 1,
+            "Versions désynchronisées -> " +
+            ", ".join(f"{k}={v}" for k, v in versions.items()),
+        )
 
 
 if __name__ == "__main__":
