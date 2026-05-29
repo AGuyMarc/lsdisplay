@@ -1,3 +1,17 @@
+lsdisplay (0.2.2-1) unstable; urgency=medium
+
+  * xrandr: pass --current to both the --properties and --verbose queries so
+    xrandr returns the current configuration without polling for hardware
+    changes. This avoids lsdisplay altering the display configuration as a
+    side effect, and speeds up execution ~2-3x. Thanks to Vincent Danjean
+    (PR #4). A "--currrent" typo (three r's) in the --verbose call was fixed
+    in a follow-up so the EDID-block parser keeps working.
+  * Packaging: declare the license as the SPDX expression GPL-2.0-or-later
+    and drop the deprecated "License :: OSI Approved ::" classifier, as newer
+    setuptools recommends. Thanks to Vincent Danjean (PR #5).
+
+ -- Guy-Marc APRIN <2026@gm.casa>  Fri, 29 May 2026 20:53:33 +0200
+
 lsdisplay (0.2.1-1) unstable; urgency=medium
 
   * Fix debian/control: bump minimum Python from 3.6 to 3.7, aligning with

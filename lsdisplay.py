@@ -45,7 +45,7 @@ except ImportError:
     sys.exit(1)
 from typing import List, Optional, Tuple
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 def _get_version_string() -> str:
     """Build version string with build date from git or file modification time.
