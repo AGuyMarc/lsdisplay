@@ -511,7 +511,7 @@ def _parse_xrandr_edid_blocks() -> dict:
     """
     try:
         output = subprocess.check_output(
-            ["xrandr", "--currrent", "--verbose"], text=True, stderr=subprocess.DEVNULL
+            ["xrandr", "--current", "--verbose"], text=True, stderr=subprocess.DEVNULL
         )
     except (subprocess.CalledProcessError, FileNotFoundError):
         return {}
