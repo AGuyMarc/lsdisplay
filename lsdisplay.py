@@ -475,7 +475,7 @@ def _get_xrandr_connector_ids() -> dict:
     """
     try:
         output = subprocess.check_output(
-            ["xrandr", "--properties"], text=True, stderr=subprocess.DEVNULL
+            ["xrandr", "--current", "--properties"], text=True, stderr=subprocess.DEVNULL
         )
     except (subprocess.CalledProcessError, FileNotFoundError):
         return {}
@@ -511,7 +511,7 @@ def _parse_xrandr_edid_blocks() -> dict:
     """
     try:
         output = subprocess.check_output(
-            ["xrandr", "--verbose"], text=True, stderr=subprocess.DEVNULL
+            ["xrandr", "--currrent", "--verbose"], text=True, stderr=subprocess.DEVNULL
         )
     except (subprocess.CalledProcessError, FileNotFoundError):
         return {}
