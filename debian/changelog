@@ -1,95 +1,55 @@
 lsdisplay (0.2.2-1) unstable; urgency=medium
 
-  * xrandr: pass --current to both the --properties and --verbose queries so
-    xrandr returns the current configuration without polling for hardware
-    changes. This avoids lsdisplay altering the display configuration as a
-    side effect, and speeds up execution ~2-3x. Thanks to Vincent Danjean
-    (PR #4). A "--currrent" typo (three r's) in the --verbose call was fixed
-    in a follow-up so the EDID-block parser keeps working.
-  * Packaging: declare the license as the SPDX expression GPL-2.0-or-later
-    and drop the deprecated "License :: OSI Approved ::" classifier, as newer
-    setuptools recommends. Thanks to Vincent Danjean (PR #5).
+  * New upstream release 0.2.2; see CHANGELOG.md for the upstream changes.
+    No Debian packaging changes.
 
  -- Guy-Marc APRIN <2026@gm.casa>  Fri, 29 May 2026 20:53:33 +0200
 
 lsdisplay (0.2.1-1) unstable; urgency=medium
 
-  * Fix debian/control: bump minimum Python from 3.6 to 3.7, aligning with
-    setup.py's python_requires=">=3.7" (the code uses f-strings and dataclasses
-    that require 3.7+; the 3.6 entry was a stale leftover).
-  * README.md: installation example now uses the exact filename
-    (lsdisplay_0.2.1-1_all.deb) instead of an X.Y.Z placeholder.
-  * Refresh docstring example date in lsdisplay.py.
-  * Cleanup: move RELEASING.md, old .deb/.bak/debian_backup and other internal
-    notes to a local .info/ directory (not shipped).
+  * debian/control: bump minimum Python from 3.6 to 3.7 to match setup.py's
+    python_requires=">=3.7" (the 3.6 entry was a stale leftover).
+  * Upstream changes for 0.2.1: see CHANGELOG.md.
 
  -- Guy-Marc APRIN <2026@gm.casa>  Mon, 18 May 2026 22:15:00 +0200
 
 lsdisplay (0.2.0-1) unstable; urgency=medium
 
-  * Add CLI override management (CRUD): --override-list, --override-add
-    (interactive wizard), --override-set with --override-model/diagonal/note
-    (programmatic), and --override-remove. Wizard reads detected displays,
-    derives the MFG_ID+product_code_hex key, and prompts for new values with
-    sensible defaults from the current EDID.
-  * Refactor: extract _save_overrides() helper from --scan code path so all
-    write-paths share the same persistence logic.
-  * Document new commands in argparse epilog examples.
-  * Bump version to 0.2.0 (minor bump: new public CLI surface).
+  * New upstream release 0.2.0; see CHANGELOG.md for the upstream changes.
+    No Debian packaging changes.
 
  -- Guy-Marc APRIN <2026@gm.casa>  Sun, 17 May 2026 18:45:00 +0200
 
 lsdisplay (0.1.4-1) unstable; urgency=medium
 
-  * Fix Debian packaging regression introduced in 0.1.3:
-    - Install man page via debian/lsdisplay.manpages (was missing from .deb).
+  * Debian packaging regression fixes (from 0.1.3):
+    - Install the man page via debian/lsdisplay.manpages (was missing).
     - Install README.md via debian/lsdisplay.docs.
-    - Add Debian-format debian/copyright file.
-    - Move /usr/bin/lsdisplay symlink from postinst hack to
-      debian/lsdisplay.links (now visible in dpkg-deb -c, no runtime hack).
-    - Remove now-unused debian/postinst (debhelper auto-handles man-db).
-  * Fix Maintainer in debian/control: 'Aprin' -> 'APRIN' to match the
-    upstream convention applied across all source headers.
+    - Add a Debian-format debian/copyright.
+    - Move the /usr/bin/lsdisplay symlink from a postinst hack to
+      debian/lsdisplay.links; remove the now-unused debian/postinst.
+  * Fix Maintainer in debian/control: 'Aprin' -> 'APRIN'.
 
  -- Guy-Marc APRIN <2026@gm.casa>  Fri, 15 May 2026 19:30:00 +0200
 
 lsdisplay (0.1.3-1) unstable; urgency=medium
 
-  * Fix ASCII layout for non-uniform vertical arrangements: replace the
-    row-banding renderer with a 2D character canvas. Portrait monitors
-    whose y-range straddles two stacked landscape monitors are now drawn
-    correctly (previously rendered as three disjoint horizontal bands
-    with the portrait alone in the middle). Reported by bigbob.
-  * Boxes now compute their right/bottom edges from absolute coordinates
-    rather than independent width rounding, eliminating spurious "||"
-    artifacts between perfectly-adjacent displays.
-  * Lower debhelper-compat level from 13 to 11 in Build-Depends so the
-    source package builds out of the box on Ubuntu 22.04 LTS. Reported
-    by Creteil (bigbob) in issue #2.
+  * debian/control: lower debhelper-compat from 13 to 11 so the source
+    package builds out of the box on Ubuntu 22.04 LTS (reported by bigbob,
+    issue #2).
+  * Upstream changes for 0.1.3: see CHANGELOG.md.
 
  -- Guy-Marc APRIN <2026@gm.casa>  Fri, 15 May 2026 00:20:00 +0200
 
 lsdisplay (0.1.2-1) unstable; urgency=medium
 
-  * Add SPDX license header (GPL-2.0-or-later)
-  * Sanity check on EDID detailed timing (DTD): prefer coarse size from
-    bytes 21-22 when DTD diagonal exceeds 2× coarse diagonal — fixes ~8"
-    displays appearing as 59" when the DTD field contains pixels instead
-    of millimetres (e.g. SGN L01N8A, BOE panels). Reported by Blaise on
-    LinuxFr.org.
+  * New upstream release 0.1.2; see CHANGELOG.md for the upstream changes.
+    No Debian packaging changes.
 
  -- Guy-Marc APRIN <2026@gm.casa>  Thu, 14 May 2026 21:51:04 +0200
 
 lsdisplay (0.1.1-1) unstable; urgency=medium
 
-  * Initial release
-  * EDID parsing for manufacturer, model, serial
-  * ASCII layout diagram with correct proportions
-  * Smart TV network scan (--scan)
-  * Override file for incorrect EDID data
-  * Refresh rate display
-  * Color support with --no-color
-  * --list-priority with GPU mapping
-  * --connected-only flag
+  * Initial Debian packaging.
 
  -- Guy-Marc Aprin <2026@gm.casa>  Sat, 03 May 2026 12:00:00 +0200
