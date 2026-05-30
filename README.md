@@ -177,30 +177,17 @@ lsdisplay --json | jq '.[].manufacturer'
 
 ## Example output
 
+Compact one-line-per-display view (`lsdisplay --short`) of a six-screen
+workstation — `*` marks the primary. The full table with serials plus the ASCII
+layout diagram is shown in [Why this exists](#why-this-exists) above.
+
 ```
-CONNECTED DISPLAYS
-==================
-
-  HDMI-A-2     1440x2560+1441+0        27"  75Hz  Iiyama PL2792Q   HDMI         S/N:1152032422031   rot=left
-  DP-4         1440x2560+0+0           27"  75Hz  Iiyama PL2792Q   DisplayPort  S/N:1152031921274   rot=left [PRIMARY]
-  HDMI-A-5     5376x3024+0+2561        65"  60Hz  Samsung QN800D   HDMI         S/N:16780800
-
-Total: 3 display(s) connected
-
-LAYOUT
-======
-
-  +--------------+ +--------------+
-  |              | |              |
-  |     DP-4*    | |   HDMI-A-2   |
-  |              | |              |
-  +--------------+ +--------------+
-
-  +------------------------------+
-  |                              |
-  |          HDMI-A-5            |
-  |                              |
-  +------------------------------+
+  HDMI-A-1     1920x1080@60Hz  32" Samsung QE32Q50A [HDMI]
+* HDMI-A-2     1440x2560@75Hz  27" Iiyama PL2792Q [HDMI]
+  HDMI-A-3     1440x2560@75Hz  27" Iiyama PL2792Q [HDMI]
+  HDMI-A-5     5376x3024@60Hz  65" Samsung TQ65QN800DTXXC [HDMI]
+  DP-4         1440x2560@75Hz  27" Iiyama PL2792Q [DisplayPort]
+  HDMI-A-4     1440x2560@75Hz  27" Iiyama PL2793Q [HDMI]
 ```
 
 ## Requirements
