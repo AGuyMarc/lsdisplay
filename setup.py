@@ -18,6 +18,7 @@ setup(
             "lsdisplay=lsdisplay:main",
         ],
     },
+    extras_require={"xdg": ["pyxdg"]},  # optional: full XDG config-path support
     python_requires=">=3.7",
     classifiers=[
         "Development Status :: 4 - Beta",

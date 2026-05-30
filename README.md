@@ -4,7 +4,7 @@ List connected displays with details and ASCII layout diagram.
 
 Like `lsusb`, `lspci`, `lscpu`, `lsblk`, `lsmem` — but for displays.
 
-A useful CLI tool for Linux users and admins. Zero-dependency — just Python 3.7+ and `/sys/class/drm`.
+A useful CLI tool for Linux users and admins. Zero-dependency — just Python 3.7+ and `/sys/class/drm`. (Config-path handling follows the XDG spec more closely when the optional `pyxdg` module — Debian `python3-xdg` — is installed.)
 
 **Companion tool:** [`lsgpu`](https://github.com/AGuyMarc/lsgpu) — list the GPUs that drive those displays (with NVIDIA/AMD stats).
 
@@ -175,6 +175,21 @@ lsdisplay --override-remove SAM7513
 lsdisplay --json | jq '.[].manufacturer'
 ```
 
+## Configuration
+
+Display overrides live in `overrides.json`, searched in XDG order (first match wins per key):
+
+| Scope  | Path |
+|--------|------|
+| User   | `$XDG_CONFIG_HOME/lsdisplay/` (default `~/.config/lsdisplay/`) |
+| System | `$XDG_CONFIG_DIRS` entries, then `/etc/xdg/lsdisplay/` — canonical system path |
+| Legacy | `/etc/lsdisplay/` — **deprecated**, still read as a last-resort fallback |
+
+Full XDG semantics need the optional `pyxdg` module; without it the fallback paths
+above are used. If `/etc/lsdisplay/overrides.json` is found, a one-line deprecation
+note is printed to **stderr** (stdout and `--json` stay clean). lsdisplay never moves
+or writes it for you.
+
 ## Example output
 
 Compact one-line-per-display view (`lsdisplay --short`) of a six-screen
@@ -192,9 +207,13 @@ layout diagram is shown in [Why this exists](#why-this-exists) above.
 
 ## Requirements
 
+**Required:**
 - Python 3.7+
 - Linux with `/sys/class/drm` (any modern kernel)
-- `xrandr` (X11) or `kscreen-doctor` (KDE Wayland) or `wlr-randr` (wlroots Wayland)
+
+**Optional** (lsdisplay still lists every display with EDID details without them):
+- `xrandr` (X11), `kscreen-doctor` (KDE Wayland) or `wlr-randr` (wlroots Wayland) — for live resolution, position and rotation
+- `pyxdg` (Debian `python3-xdg`) — full `$XDG_CONFIG_HOME`/`$XDG_CONFIG_DIRS` config-path semantics
 
 ## How it works
 

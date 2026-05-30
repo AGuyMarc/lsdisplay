@@ -10,6 +10,7 @@ Package: lsdisplay
 Architecture: all
 Depends: python3 (>= 3.7), ${misc:Depends}
 Recommends: xrandr
+Suggests: python3-xdg
 Description: List connected displays with details and ASCII layout
  lsdisplay lists all connected displays/monitors with manufacturer,
  model, serial number, resolution, position, rotation, refresh rate,
