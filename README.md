@@ -143,11 +143,36 @@ chmod +x ~/.local/bin/lsdisplay
 ## Usage
 
 ```bash
-lsdisplay              # Full output with layout diagram
-lsdisplay --short      # Compact one-line-per-display
-lsdisplay --json       # JSON output for scripting
-lsdisplay --no-layout  # Skip the ASCII art diagram
-lsdisplay --version    # Show version
+lsdisplay                  # Full output with layout diagram
+lsdisplay --short          # Compact one-line-per-display
+lsdisplay --json           # JSON output for scripting
+lsdisplay --no-layout      # Skip the ASCII art diagram
+lsdisplay --connected-only # Hide disconnected outputs
+lsdisplay --list-priority  # Display priority order with GPU mapping
+lsdisplay --no-color       # Disable coloured output
+lsdisplay --version        # Show version
+```
+
+### Smart TV network scan
+
+```bash
+lsdisplay --scan                 # Auto-detect the local subnet
+lsdisplay --scan 192.168.1.0/24  # Scan a specific subnet
+```
+
+### Display overrides (for wrong or missing EDID)
+
+```bash
+lsdisplay --override-list        # List current overrides
+lsdisplay --override-add         # Interactive wizard for a detected display
+lsdisplay --override-set SAM7513 --override-model QN65QN900B --override-diagonal 65 --override-note Salon
+lsdisplay --override-remove SAM7513
+```
+
+### Scripting
+
+```bash
+lsdisplay --json | jq '.[].manufacturer'
 ```
 
 ## Example output
