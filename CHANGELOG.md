@@ -5,6 +5,21 @@ All notable changes to **lsdisplay**. This is the canonical upstream changelog;
 
 ## Unreleased
 
+## 0.2.3 — 2026-06-04
+
+* docs(man): bring the man page back in sync with the binary — it had drifted
+  behind and was missing most options. Document `--scan`, `--connected-only`,
+  `--list-priority`, `--no-color`, and the full `--override-*` family
+  (`list`/`add`/`set`/`remove`/`model`/`diagonal`/`note`), grouped into
+  subsections, with matching EXAMPLES. Expand FILES to explain the per-user
+  (`~/.config/lsdisplay/overrides.json`) vs machine-wide (`/etc/lsdisplay/
+  overrides.json`, written with `sudo`) override files, their precedence
+  (per-user wins outright; not merged), and that overrides never touch xrandr
+  or X11 config.
+* docs(man): heads-up that a follow-up release will add **optional** XDG
+  config-path support (via the optional `pyxdg` module — the zero-dependency
+  fallback is preserved) with multi-file merge, demoting
+  `/etc/lsdisplay/overrides.json` to a deprecated fallback.
 * tests: add a version-consistency guard that fails if the version sources
   (`setup.py`, `__version__`, man `.TH`, `debian/changelog`, this file) diverge.
 * docs(man): use an ISO date (`YYYY-MM-DD`) in the `.TH` line.

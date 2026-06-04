@@ -1,7 +1,7 @@
 .\" SPDX-License-Identifier: GPL-2.0-or-later
 .\" Copyright (C) 2026 Guy-Marc APRIN <2026@gm.casa>
-.\" NB: contact email rotates yearly — 2027@gm.casa in 2027, etc.
-.TH LSDISPLAY 1 "2026-05-29" "lsdisplay 0.2.2" "User Commands"
+.\" NB: contact email rotates yearly - 2027@gm.casa in 2027, etc.
+.TH LSDISPLAY 1 "2026-06-04" "lsdisplay 0.2.3" "User Commands"
 .SH NAME
 lsdisplay \- list connected displays with details and layout diagram
 .SH SYNOPSIS
@@ -30,16 +30,72 @@ is similar in spirit to
 and
 .BR lspci (8),
 but for display devices.
+.PP
+When EDID data is wrong or missing, persistent \fIoverrides\fR can be defined
+(per\-display: model, diagonal size, note) with the \fB\-\-override\-*\fR options.
+They are stored in a JSON config file and re\-applied automatically on every run.
+.PP
+.B lsdisplay
+can also scan the local network for Smart TVs with
+.BR \-\-scan ,
+identifying sets such as Samsung TV Plus and recording them as overrides so they
+appear with their real model names on subsequent runs.
 .SH OPTIONS
+.SS Display listing
 .TP
 .B \-\-json
-Output all display information as JSON.
+Output all display information as JSON (for scripting).
 .TP
 .B \-\-short\fR, \fB\-s
 Compact output with one line per display.
 .TP
 .B \-\-no\-layout
 Skip the ASCII art layout diagram.
+.TP
+.B \-\-connected\-only
+Only show connected displays (hide disconnected outputs).
+.TP
+.B \-\-list\-priority
+Show the display priority order with GPU mapping.
+.TP
+.B \-\-no\-color
+Disable coloured output.
+.SS Smart TV network scan
+.TP
+.B \-\-scan\fR [\fISUBNET\fR]
+Scan the local network for Smart TVs (e.g. Samsung) and auto\-configure them as
+displays. Without \fISUBNET\fR the local subnet is auto\-detected; otherwise pass a
+CIDR such as \fI192.168.1.0/24\fR. Detected sets are saved to the overrides file so
+later runs show their model names.
+.SS Display overrides
+Override wrong or missing EDID data. Overrides are keyed by a short display id
+(e.g.\& \fBSAM7513\fR) and persisted to a JSON config file.
+.TP
+.B \-\-override\-list
+List the currently configured overrides.
+.TP
+.B \-\-override\-add
+Interactively add an override for a detected display (wizard).
+.TP
+.B \-\-override\-set \fIKEY\fR
+Programmatically set an override for display \fIKEY\fR; combine with
+.BR \-\-override\-model ,
+.BR \-\-override\-diagonal ,
+and
+.BR \-\-override\-note .
+.TP
+.B \-\-override\-remove \fIKEY\fR
+Remove the override identified by \fIKEY\fR (e.g.\& \fBSAM7513\fR).
+.TP
+.B \-\-override\-model \fIMODEL\fR
+Model name to record (used with \fB\-\-override\-set\fR).
+.TP
+.B \-\-override\-diagonal \fIINCHES\fR
+Diagonal screen size in inches (used with \fB\-\-override\-set\fR).
+.TP
+.B \-\-override\-note \fINOTE\fR
+Free\-form note or description, e.g.\& the room (used with \fB\-\-override\-set\fR).
+.SS General
 .TP
 .B \-\-version\fR, \fB\-V
 Show version number and exit.
@@ -57,8 +113,16 @@ An ASCII art diagram showing the relative positions and sizes of all displays wi
 .SH EXAMPLES
 .nf
 .B lsdisplay
+.B lsdisplay \-\-short
 .B lsdisplay \-\-json
-.B lsdisplay \-s
+.B lsdisplay \-\-connected\-only
+.B lsdisplay \-\-list\-priority
+.B lsdisplay \-\-scan
+.B lsdisplay \-\-scan 192.168.1.0/24
+.B lsdisplay \-\-override\-list
+.B lsdisplay \-\-override\-add
+.B lsdisplay \-\-override\-set SAM7513 \-\-override\-model QN65QN900B \-\-override\-diagonal 65 \-\-override\-note Salon
+.B lsdisplay \-\-override\-remove SAM7513
 .B lsdisplay \-\-json | jq '.[].manufacturer'
 .fi
 .SH FILES
@@ -68,6 +132,54 @@ EDID binary data for each display output.
 .TP
 .I /sys/class/drm/card*\-*/status
 Connection status for each output port.
+.TP
+.I ~/.config/lsdisplay/overrides.json
+Per\-user overrides and saved Smart TV scan results. Written by the
+\fB\-\-override\-*\fR and \fB\-\-scan\fR commands when run as a normal user;
+applies to that user only.
+.TP
+.I /etc/lsdisplay/overrides.json
+Machine\-wide overrides, applied to every user. Written when
+\fB\-\-override\-set\fR or \fB\-\-scan\fR is run with
+.BR sudo
+(the per\-user copy is created as well).
+.PP
+Override keys are the display manufacturer id plus product code (e.g.\&
+.BR SAM7513 ).
+.B Precedence:
+the per\-user file is read first and, if it exists, wins outright \(em the
+.I /etc
+file is then ignored entirely (the two are
+.I not
+merged). An override only replaces the model, diagonal and note shown by
+.B lsdisplay
+for the matching display; it does
+.I not
+modify
+.BR xrandr (1)
+or any X11 configuration (there is no
+.I /etc/xrandr
+involved).
+.PP
+.B Note (upcoming change):
+a future release will additionally support the XDG base directories
+(\fB$XDG_CONFIG_HOME\fR, \fB$XDG_CONFIG_DIRS\fR and \fI/etc/xdg/lsdisplay\fR),
+merge values across config files in XDG order, and demote
+.I /etc/lsdisplay/overrides.json
+to a deprecated read\-only fallback \(em so the precedence described above will
+then change.
+.PP
+This XDG support is
+.B optional
+by design: it is enabled only when the optional third\-party module
+\fBpyxdg\fR (Debian package \fBpython3\-xdg\fR) is installed, and
+.B lsdisplay
+falls back to the hardcoded paths above otherwise. The rationale: lsdisplay must
+run on any Linux box with nothing but \fBpython3\fR \(em locked\-down production
+servers (no PyPI allowed by policy), minimal containers, rescue and live systems,
+air\-gapped hosts \(em where a mandatory third\-party dependency would be a
+non\-starter. XDG correctness is therefore an enhancement, never a precondition
+for simply listing the displays that are plugged in.
 .SH SEE ALSO
 .BR xrandr (1),
 .BR kscreen-doctor (1),
