@@ -169,6 +169,14 @@ lsdisplay --override-set SAM7513 --override-model QN65QN900B --override-diagonal
 lsdisplay --override-remove SAM7513
 ```
 
+### Save or restore the config
+
+```bash
+lsdisplay --write-config           # Save overrides to your user config
+lsdisplay --write-config=system    # Install overrides machine-wide (needs sudo)
+lsdisplay --restore-config=system  # Copy machine config into your user config
+```
+
 ### Scripting
 
 ```bash
@@ -189,6 +197,22 @@ Full XDG semantics need the optional `pyxdg` module; without it the fallback pat
 above are used. If `/etc/lsdisplay/overrides.json` is found, a one-line deprecation
 note is printed to **stderr** (stdout and `--json` stay clean). lsdisplay never moves
 or writes it for you.
+
+### Saving & restoring overrides
+
+```bash
+lsdisplay --write-config            # save current overrides to your user config
+lsdisplay --write-config=system     # install them machine-wide (needs sudo)
+sudo lsdisplay --write-config=system
+
+lsdisplay --restore-config=system          # pull the machine config into your user config
+lsdisplay --restore-config=~/backup.json   # import an overrides.json (e.g. a *.bak)
+```
+
+`--write-config` **pushes** your active overrides to a scope; `--restore-config`
+**pulls** a config into your user scope. Both back up any existing target to
+`*.bak` first. `--write-config=system` replaces the old silent `/etc` auto-copy
+with an explicit, visible action.
 
 ## Example output
 

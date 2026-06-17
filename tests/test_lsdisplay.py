@@ -3,16 +3,22 @@
 # Copyright (C) 2026 Guy-Marc APRIN <2026@gm.casa>
 # NB: contact email rotates yearly — 2027@gm.casa in 2027, etc.
 """Tests unitaires pour lsdisplay."""
+import contextlib
+import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
+from unittest import mock
 
 # Ajouter le dossier parent au path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import lsdisplay
 from lsdisplay import (
     parse_edid, PNP_MANUFACTURERS, Display,
     _load_overrides, get_overrides, render_layout,
@@ -254,6 +260,97 @@ class TestVersionConsistency(unittest.TestCase):
             "Versions désynchronisées -> " +
             ", ".join(f"{k}={v}" for k, v in versions.items()),
         )
+
+
+class TestWriteRestoreConfig(unittest.TestCase):
+    """--write-config / --restore-config across user & system scopes."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.user_dir = os.path.join(self.tmp, "user")
+        self.sys_dir = os.path.join(self.tmp, "system")
+        os.makedirs(self.user_dir)
+        os.makedirs(self.sys_dir)
+        # Isolate from the real /etc/lsdisplay, /etc/xdg and $HOME.
+        self._patches = [
+            mock.patch.object(lsdisplay, "_config_save_dir", lambda: self.user_dir),
+            mock.patch.object(lsdisplay, "_config_load_dirs", lambda: [self.user_dir]),
+            mock.patch.object(lsdisplay, "_config_system_dir",
+                              lambda create=False: self.sys_dir),
+        ]
+        for p in self._patches:
+            p.start()
+
+    def tearDown(self):
+        for p in self._patches:
+            p.stop()
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    # -- helpers --
+    def _write(self, path, d):
+        with open(path, "w") as f:
+            json.dump(d, f)
+
+    def _read(self, path):
+        with open(path) as f:
+            return json.load(f)
+
+    def _silent(self, fn, *args):
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(buf):
+            fn(*args)
+        return buf.getvalue()
+
+    @property
+    def _user_file(self):
+        return os.path.join(self.user_dir, "overrides.json")
+
+    # -- write-config --
+    def test_write_config_user_backs_up(self):
+        self._write(self._user_file, {"SAM7513": {"model": "QN65"}})
+        self._silent(lsdisplay.cmd_write_config, "user")
+        data = self._read(self._user_file)
+        self.assertIn("SAM7513", data)
+        self.assertIn("_comment", data)
+        self.assertTrue(os.path.exists(self._user_file + ".bak"))
+
+    def test_write_config_system(self):
+        self._write(self._user_file, {"DEL1234": {"model": "U2720Q"}})
+        self._silent(lsdisplay.cmd_write_config, "system")
+        sys_file = os.path.join(self.sys_dir, "overrides.json")
+        self.assertTrue(os.path.exists(sys_file))
+        self.assertIn("DEL1234", self._read(sys_file))
+
+    def test_write_config_empty_exits(self):
+        with self.assertRaises(SystemExit):
+            self._silent(lsdisplay.cmd_write_config, "user")
+
+    # -- restore-config --
+    def test_restore_from_file_replaces_and_backs_up(self):
+        self._write(self._user_file, {"OLD": {}})
+        shared = os.path.join(self.tmp, "shared.json")
+        self._write(shared, {"NEW": {"model": "Z"}})
+        self._silent(lsdisplay.cmd_restore_config, shared)
+        data = self._read(self._user_file)
+        self.assertIn("NEW", data)
+        self.assertNotIn("OLD", data)
+        self.assertTrue(os.path.exists(self._user_file + ".bak"))
+
+    def test_restore_from_system(self):
+        self._write(os.path.join(self.sys_dir, "overrides.json"), {"SYS": {"model": "S"}})
+        self._silent(lsdisplay.cmd_restore_config, "system")
+        self.assertIn("SYS", self._read(self._user_file))
+
+    def test_restore_user_is_noop_exit(self):
+        with self.assertRaises(SystemExit):
+            self._silent(lsdisplay.cmd_restore_config, "user")
+
+    def test_restore_missing_source_exits(self):
+        with self.assertRaises(SystemExit):
+            self._silent(lsdisplay.cmd_restore_config, os.path.join(self.tmp, "nope.json"))
+
+    def test_backup_existing_returns_none_when_absent(self):
+        self.assertIsNone(lsdisplay._backup_existing(os.path.join(self.tmp, "absent")))
 
 
 if __name__ == "__main__":

@@ -207,6 +207,28 @@ def _config_save_dir():
     return d
 
 
+def _config_system_dir(create=False):
+    """System-scope config directory (/etc/xdg/lsdisplay), the canonical XDG
+    machine-wide path. Writing here is machine-wide and normally needs root.
+    """
+    d = "/etc/xdg/lsdisplay"
+    if create:
+        os.makedirs(d, exist_ok=True)
+    return d
+
+
+def _backup_existing(path):
+    """If path exists, copy it to path + '.bak' before overwrite.
+
+    Returns the backup path, or None if there was nothing to back up.
+    """
+    if os.path.exists(path):
+        bak = path + ".bak"
+        shutil.copy2(path, bak)
+        return bak
+    return None
+
+
 def _warn_legacy_config(path):
     """One-shot stderr note when the deprecated /etc/lsdisplay file is read."""
     global _legacy_config_warned
@@ -265,6 +287,85 @@ def _save_overrides(overrides_dict):
     with open(config_path, "w") as f:
         json_mod.dump(clean, f, indent=2, ensure_ascii=False)
     return config_path
+
+
+def cmd_write_config(scope):
+    """Write the current effective overrides to a config scope.
+
+    user   -> ~/.config/lsdisplay/overrides.json (XDG user dir, default)
+    system -> /etc/xdg/lsdisplay/overrides.json  (machine-wide; needs sudo)
+
+    The current configuration is the merged result of all scopes, so this
+    "promotes" your active overrides to the chosen location. Any existing
+    target file is backed up to *.bak first. Replaces the old silent
+    /etc auto-copy with an explicit, visible action.
+    """
+    overrides = _load_overrides()
+    clean = {k: v for k, v in overrides.items() if not k.startswith("_")}
+    if not clean:
+        print("No overrides to write (current configuration is empty).", file=sys.stderr)
+        print("Add some with --override-add or --override-set first.", file=sys.stderr)
+        sys.exit(1)
+    try:
+        target_dir = (_config_system_dir(create=True) if scope == "system"
+                      else _config_save_dir())
+    except PermissionError:
+        print(f"lsdisplay: permission denied creating {_config_system_dir()} "
+              "— re-run with sudo.", file=sys.stderr)
+        sys.exit(1)
+    target = os.path.join(target_dir, "overrides.json")
+    clean["_comment"] = (
+        "Display overrides keyed by MFG_ID + product_code_hex (e.g. SAM7513). "
+        f"Written by lsdisplay --write-config={scope}."
+    )
+    try:
+        bak = _backup_existing(target)
+        with open(target, "w") as f:
+            json_mod.dump(clean, f, indent=2, ensure_ascii=False)
+    except PermissionError:
+        print(f"lsdisplay: permission denied writing {target} — re-run with sudo.",
+              file=sys.stderr)
+        sys.exit(1)
+    print(f"Wrote {len(clean) - 1} override(s) to {target} [{scope} scope]")
+    if bak:
+        print(f"Previous file backed up to {bak}")
+
+
+def cmd_restore_config(source):
+    """Restore overrides INTO the user scope from a source.
+
+    system -> copy /etc/xdg/lsdisplay/overrides.json into the user config dir
+    FILE   -> import an arbitrary overrides.json (e.g. a *.bak or shared file)
+
+    The existing user file is backed up to *.bak first.
+    """
+    if source == "system":
+        src_path = os.path.join(_config_system_dir(), "overrides.json")
+    elif source == "user":
+        print("Source 'user' is already the active scope — nothing to restore.",
+              file=sys.stderr)
+        sys.exit(1)
+    else:
+        src_path = os.path.expanduser(source)
+    if not os.path.exists(src_path):
+        print(f"lsdisplay: source not found: {src_path}", file=sys.stderr)
+        sys.exit(1)
+    try:
+        with open(src_path) as f:
+            data = json_mod.load(f)
+    except Exception as e:
+        print(f"lsdisplay: cannot read {src_path}: {e}", file=sys.stderr)
+        sys.exit(1)
+    clean = {k: v for k, v in data.items() if not k.startswith("_")}
+    if not clean:
+        print(f"lsdisplay: {src_path} has no overrides to restore.", file=sys.stderr)
+        sys.exit(1)
+    target = os.path.join(_config_save_dir(), "overrides.json")
+    bak = _backup_existing(target)
+    path = _save_overrides(clean)
+    print(f"Restored {len(clean)} override(s) from {src_path} into {path}")
+    if bak:
+        print(f"Previous file backed up to {bak}")
 
 
 def cmd_override_list():
@@ -1301,6 +1402,9 @@ def main():
   lsdisplay --override-add   interactive wizard to add an override
   lsdisplay --override-set SAM7513 --override-model QN65QN900B --override-diagonal 65 --override-note Salon
   lsdisplay --override-remove SAM7513
+  lsdisplay --write-config           save overrides to your user config
+  lsdisplay --write-config=system    install overrides machine-wide (needs sudo)
+  lsdisplay --restore-config=system  copy machine config into your user config
   lsdisplay --json | jq '.[].manufacturer'
 
 source: https://github.com/AGuyMarc/lsdisplay
@@ -1357,6 +1461,15 @@ License: GPL-2.0-or-later""",
         "--override-note", help="note/description (with --override-set)"
     )
     parser.add_argument(
+        "--write-config", nargs="?", const="user", choices=["user", "system"],
+        default=None, metavar="SCOPE",
+        help="write current overrides to a scope: user (default) or system (needs sudo)"
+    )
+    parser.add_argument(
+        "--restore-config", metavar="SOURCE",
+        help="restore overrides into the user scope from 'system' or a FILE path"
+    )
+    parser.add_argument(
         "--version", "-V", action="version", version=f"%(prog)s {_get_version_string()}"
     )
     args = parser.parse_args()
@@ -1375,6 +1488,12 @@ License: GPL-2.0-or-later""",
         return
     if args.override_remove:
         cmd_override_remove(args.override_remove)
+        return
+    if args.write_config:
+        cmd_write_config(args.write_config)
+        return
+    if args.restore_config:
+        cmd_restore_config(args.restore_config)
         return
 
     if args.scan:

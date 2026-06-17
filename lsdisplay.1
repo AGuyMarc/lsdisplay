@@ -97,6 +97,33 @@ Diagonal screen size in inches (used with \fB\-\-override\-set\fR).
 Free\-form note or description, e.g.\& the room (used with \fB\-\-override\-set\fR).
 .SS General
 .TP
+.B \-\-write\-config\fR[=\fIuser\fR|\fIsystem\fR]
+Write the current display overrides to a config scope.
+.I user
+(the default) writes to the per\-user config dir
+.RI ( ~/.config/lsdisplay/overrides.json );
+.I system
+writes machine\-wide to
+.IR /etc/xdg/lsdisplay/overrides.json ,
+which normally requires
+.BR sudo .
+Any existing target file is first backed up to
+.IR *.bak .
+.TP
+.B \-\-restore\-config\fR=\fISOURCE
+Restore overrides into the per\-user config dir from
+.IR SOURCE :
+the word
+.I system
+copies the machine\-wide file into your user config, or
+.I SOURCE
+may be a path to an
+.I overrides.json
+file (e.g. a
+.I *.bak
+backup or a shared config). The existing user file is backed up to
+.IR *.bak .
+.TP
 .B \-\-version\fR, \fB\-V
 Show version number and exit.
 .TP
@@ -126,6 +153,15 @@ An ASCII art diagram showing the relative positions and sizes of all displays wi
 .B lsdisplay \-\-json | jq '.[].manufacturer'
 .fi
 .SH FILES
+.TP
+.I ~/.config/lsdisplay/overrides.json
+Per\-user display overrides (user scope). Written by
+.BR \-\-override\-* ,
+.BR "\-\-write\-config" ", and " \-\-restore\-config .
+.TP
+.I /etc/xdg/lsdisplay/overrides.json
+Machine\-wide display overrides (system scope), written by
+.BR "\-\-write\-config=system" .
 .TP
 .I /sys/class/drm/card*/edid
 EDID binary data for each display output.
