@@ -5,6 +5,21 @@ All notable changes to **lsdisplay**. This is the canonical upstream changelog;
 
 ## Unreleased
 
+## 0.2.4 — 2026-07-28
+
+* config: optional XDG config-path support. When the optional `pyxdg` module
+  (Debian `python3-xdg`) is present, overrides are searched across
+  `$XDG_CONFIG_HOME` and `$XDG_CONFIG_DIRS` (plus `/etc/xdg/lsdisplay/`) and
+  merged per key in XDG precedence order; without it, hardcoded fallback paths
+  keep lsdisplay zero-dependency. The pre-XDG `/etc/lsdisplay/overrides.json`
+  stays readable as a deprecated last-resort fallback, with a one-line note on
+  stderr when found. The silent `/etc` auto-copy on `--scan` is dropped in
+  favour of a printed hint.
+* config: `--write-config[=user|system]` writes the current overrides to the
+  user (default) or machine-wide (`/etc/xdg/lsdisplay/`, needs sudo) config,
+  backing up any existing target to `*.bak`; `--restore-config=SOURCE` restores
+  the user config from `system` or a file path (also backing up first).
+
 ## 0.2.3 — 2026-06-04
 
 * docs(man): bring the man page back in sync with the binary — it had drifted

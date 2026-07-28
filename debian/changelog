@@ -1,3 +1,10 @@
+lsdisplay (0.2.4-1) unstable; urgency=medium
+
+  * New upstream release 0.2.4; see CHANGELOG.md for the upstream changes.
+    No Debian packaging changes.
+
+ -- Guy-Marc APRIN <2026@gm.casa>  Tue, 28 Jul 2026 12:10:00 +0200
+
 lsdisplay (0.2.3-1) unstable; urgency=medium
 
   * New upstream release 0.2.3; see CHANGELOG.md for the upstream changes.

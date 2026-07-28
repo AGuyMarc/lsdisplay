@@ -55,7 +55,7 @@ try:
 except ImportError:
     _HAS_PY_XDG = False
 
-__version__ = "0.2.3"
+__version__ = "0.2.4"
 
 def _get_version_string() -> str:
     """Build version string with build date from git or file modification time.
