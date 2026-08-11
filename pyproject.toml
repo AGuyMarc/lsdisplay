@@ -1,0 +1,36 @@
+# SPDX-License-Identifier: GPL-2.0-or-later
+# Copyright (C) 2026 Guy-Marc APRIN <2026@gm.casa>
+# NB: contact email rotates yearly — 2027@gm.casa in 2027, etc.
+#
+# PEP 517/518 build config (replaces setup.py, which is deprecated as a direct
+# build interface — see issue #6). Metadata lives here; the tool stays a single
+# self-contained module (lsdisplay.py) with zero runtime dependencies, still
+# runnable as `python3 lsdisplay.py`.
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lsdisplay"
+version = "0.2.4"
+description = "List connected displays — like lsusb/lspci but for screens"
+readme = "README.md"
+requires-python = ">=3.7"
+license = { text = "GPL-2.0-or-later" }
+authors = [{ name = "Guy-Marc APRIN", email = "2026@gm.casa" }]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: System Administrators",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: System :: Hardware",
+    "Topic :: Utilities",
+]
+
+[project.scripts]
+lsdisplay = "lsdisplay:main"
+
+[tool.setuptools]
+py-modules = ["lsdisplay"]

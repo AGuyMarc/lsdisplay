@@ -248,8 +248,8 @@ class TestVersionConsistency(unittest.TestCase):
         versions = {
             "lsdisplay.py (__version__)":
                 self._grep("lsdisplay.py", r'^__version__\s*=\s*["\']([^"\']+)["\']', "__version__"),
-            "setup.py":
-                self._grep("setup.py", r'version\s*=\s*["\']([^"\']+)["\']', "setup.py"),
+            "pyproject.toml":
+                self._grep("pyproject.toml", r'^version\s*=\s*["\']([^"\']+)["\']', "pyproject.toml"),
             "lsdisplay.1 (.TH)":
                 self._grep("lsdisplay.1", r'"lsdisplay\s+([0-9][0-9.]*)"', "man .TH"),
             "debian/changelog":
