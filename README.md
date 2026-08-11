@@ -125,6 +125,18 @@ yay -S lsdisplay-git
 
 Package page: https://aur.archlinux.org/packages/lsdisplay-git
 
+### Fedora (COPR)
+
+Available from the [`ls-tools` COPR repository](https://copr.fedorainfracloud.org/coprs/guy-marc-aprin/ls-tools/):
+
+```bash
+sudo dnf copr enable guy-marc-aprin/ls-tools
+sudo dnf install lsdisplay
+```
+
+Builds are provided for Fedora 43, 44 and rawhide (x86_64). Enabling the COPR also
+gives you `lsgpus` (the companion GPU-listing tool).
+
 ### From source
 
 ```bash
