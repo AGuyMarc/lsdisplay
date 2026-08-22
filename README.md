@@ -105,6 +105,19 @@ Together they tell the whole story: the screen in front of me, the cable behind 
 
 ## Installation
 
+### PyPI (any distribution, macOS, Windows)
+
+Cross-platform, no root needed — installs into an isolated environment with
+[pipx](https://pipx.pypa.io):
+
+```bash
+pipx install lsdisplay
+```
+
+(`pip install --user lsdisplay` also works.) Pure Python 3, no mandatory
+dependencies. The external tools it reads (`xrandr`, `kscreen-doctor`,
+`wlr-randr`) must already be present, as with any install method.
+
 ### Debian / Ubuntu (.deb)
 
 Download the `.deb` from the [Releases page](https://github.com/AGuyMarc/lsdisplay/releases/latest), then:

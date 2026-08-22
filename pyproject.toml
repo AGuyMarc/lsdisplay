@@ -29,6 +29,12 @@ classifiers = [
     "Topic :: Utilities",
 ]
 
+[project.urls]
+Homepage = "https://github.com/AGuyMarc/lsdisplay"
+Repository = "https://github.com/AGuyMarc/lsdisplay"
+Issues = "https://github.com/AGuyMarc/lsdisplay/issues"
+Changelog = "https://github.com/AGuyMarc/lsdisplay/blob/main/CHANGELOG.md"
+
 [project.scripts]
 lsdisplay = "lsdisplay:main"
 
