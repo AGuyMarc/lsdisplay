@@ -28,6 +28,29 @@ speaks --json. Pure Python 3, zero mandatory dependencies.}
 %prep
 %autosetup -n %{name}-%{version}
 
+%if 0%{?el9}
+# EPEL 9 fournit setuptools < 61, incapable de builder un paquet pyproject [project].
+# lsdisplay est un script mono-fichier : on l'installe directement (pas de wheel).
+# Le shebang env est remplace par /usr/bin/python3 (proprete rpmlint + dep auto).
+
+%build
+# rien a compiler
+
+%install
+sed -e '1s|^#!.*|#!/usr/bin/python3|' %{name}.py > %{name}.bin
+install -Dpm 0755 %{name}.bin %{buildroot}%{_bindir}/%{name}
+install -Dpm 0644 %{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
+
+%check
+%{python3} -m unittest discover -s tests -v ||:
+
+%files
+%license LICENSE
+%doc README.md
+%{_bindir}/%{name}
+%{_mandir}/man1/%{name}.1*
+
+%else
 %generate_buildrequires
 %pyproject_buildrequires
 
@@ -49,6 +72,7 @@ install -Dpm 0644 %{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
 %doc README.md
 %{_bindir}/lsdisplay
 %{_mandir}/man1/%{name}.1*
+%endif
 
 %changelog
 * Sat Aug 22 2026 Guy-Marc APRIN <2026@gm.casa> - 0.2.5-1
