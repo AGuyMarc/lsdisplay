@@ -166,6 +166,22 @@ sudo dnf copr enable guy-marc-aprin/ls-tools
 sudo dnf install lsdisplay
 ```
 
+### openSUSE
+
+Available from the [openSUSE Build Service](https://build.opensuse.org/package/show/home:guy-marc.aprin/lsdisplay).
+Add the repository and install (Tumbleweed shown; for Leap 15.6 swap
+`openSUSE_Tumbleweed` → `openSUSE_Leap_15.6`):
+
+```bash
+sudo zypper addrepo https://download.opensuse.org/repositories/home:/guy-marc.aprin/openSUSE_Tumbleweed/home:guy-marc.aprin.repo
+sudo zypper refresh
+sudo zypper install lsdisplay
+```
+
+The same repository also ships `lsgpus` (the companion GPU-listing tool). Updates
+arrive with `sudo zypper update`. To remove the repository later, find its alias with
+`sudo zypper lr` and run `sudo zypper rr <alias>`.
+
 ### From source
 
 ```bash

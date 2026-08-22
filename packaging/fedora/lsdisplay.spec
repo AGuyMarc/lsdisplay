@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 # Paquet Fedora/COPR — lsdisplay (Guy-Marc APRIN)
-# Cale sur la derniere release publiee : v0.2.4 (2026-07-28).
+# Cale sur la derniere release publiee : v0.2.5 (2026-08-22).
 
 Name:           lsdisplay
 Version:        0.2.5
@@ -28,9 +28,9 @@ speaks --json. Pure Python 3, zero mandatory dependencies.}
 %prep
 %autosetup -n %{name}-%{version}
 
-%if 0%{?el9}
-# EPEL 9 fournit setuptools < 61, incapable de builder un paquet pyproject [project].
-# lsdisplay est un script mono-fichier : on l'installe directement (pas de wheel).
+%if 0%{?el9} || 0%{?suse_version}
+# EPEL 9 (setuptools < 61) et openSUSE (macros %%pyproject_* absentes/variables selon
+# Leap vs Tumbleweed) : on installe directement le script mono-fichier, sans wheel.
 # Le shebang env est remplace par /usr/bin/python3 (proprete rpmlint + dep auto).
 
 %build
