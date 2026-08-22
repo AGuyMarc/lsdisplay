@@ -5,6 +5,11 @@ All notable changes to **lsdisplay**. This is the canonical upstream changelog;
 
 ## Unreleased
 
+## 0.2.5 — 2026-08-22
+
+* build: migrate to `pyproject.toml` (PEP 517/518); `setup.py` dropped.
+* packaging: Fedora COPR spec and "Fedora (COPR)" install docs added.
+
 ## 0.2.4 — 2026-07-28
 
 * config: optional XDG config-path support. When the optional `pyxdg` module

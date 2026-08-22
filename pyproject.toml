@@ -13,7 +13,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lsdisplay"
-version = "0.2.4"
+version = "0.2.5"
 description = "List connected displays — like lsusb/lspci but for screens"
 readme = "README.md"
 requires-python = ">=3.7"

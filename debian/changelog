@@ -1,3 +1,11 @@
+lsdisplay (0.2.5-1) unstable; urgency=medium
+
+  * New upstream release 0.2.5; see CHANGELOG.md for the upstream changes.
+    Build system migrated to pyproject.toml (PEP 517/518); setup.py dropped.
+    Fedora COPR packaging added upstream. No Debian packaging changes.
+
+ -- Guy-Marc APRIN <2026@gm.casa>  Sat, 22 Aug 2026 06:54:10 +0200
+
 lsdisplay (0.2.4-1) unstable; urgency=medium
 
   * New upstream release 0.2.4; see CHANGELOG.md for the upstream changes.

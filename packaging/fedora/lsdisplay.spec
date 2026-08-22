@@ -3,7 +3,7 @@
 # Cale sur la derniere release publiee : v0.2.4 (2026-07-28).
 
 Name:           lsdisplay
-Version:        0.2.4
+Version:        0.2.5
 Release:        1%{?dist}
 Summary:        List connected displays — like lsusb/lspci but for screens
 
@@ -51,6 +51,8 @@ install -Dpm 0644 %{name}.1 %{buildroot}%{_mandir}/man1/%{name}.1
 %{_mandir}/man1/%{name}.1*
 
 %changelog
+* Sat Aug 22 2026 Guy-Marc APRIN <2026@gm.casa> - 0.2.5-1
+- Aligne sur la release GitHub v0.2.5 (migration build vers pyproject.toml, PEP 517/518).
 * Tue Jul 28 2026 Guy-Marc APRIN <2026@gm.casa> - 0.2.4-1
 - Aligne sur la release GitHub v0.2.4 (XDG optionnel + --write-config/--restore-config).
 * Fri Jul 03 2026 Guy-Marc APRIN <2026@gm.casa> - 0.2.3-1
